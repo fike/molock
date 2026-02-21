@@ -1,0 +1,202 @@
+server:
+  port: 8080
+  workers: 4
+  host: "0.0.0.0"
+  max_request_size: 10485760  # 10MB
+
+telemetry:
+  enabled: true
+  service_name: "molock"
+  service_version: "0.1.0"
+  endpoint: "http://localhost:4317"
+  protocol: "grpc"
+  sampling_rate: 1.0
+  log_level: "info"
+  log_format: "json"
+  timeout_seconds: 30
+  export_batch_size: 512
+  export_timeout_millis: 30000
+
+endpoints:
+  - name: "Health Check"
+    method: GET
+    path: "/health"
+    responses:
+      - status: 200
+        body: '{"status": "healthy", "timestamp": "{{timestamp}}"}'
+        headers:
+          Content-Type: application/json
+
+  - name: "Get User"
+    method: GET
+    path: "/users/:id"
+    responses:
+      - status: 200
+        delay: 50ms
+        body: '{"id": "{{id}}", "name": "John Doe", "email": "john@example.com"}'
+        headers:
+          Content-Type: application/json
+          X-Request-ID: "{{request_id}}"
+      - status: 404
+        condition: "id == 'unknown'"
+        body: '{"error": "User not found"}'
+        headers:
+          Content-Type: application/json
+      - status: 500
+        probability: 0.01
+        body: '{"error": "Internal server error"}'
+        headers:
+          Content-Type: application/json
+
+  - name: "Create Order"
+    method: POST
+    path: "/orders"
+    responses:
+      - status: 201
+        delay: 300ms
+        body: '{"orderId": "{{uuid}}", "status": "created", "timestamp": "{{timestamp}}"}'
+        headers:
+          Content-Type: application/json
+          Location: "/orders/{{uuid}}"
+      - status: 400
+        condition: "body.order_items == null or body.order_items.length == 0"
+        body: '{"error": "No items in order"}'
+        headers:
+          Content-Type: application/json
+      - status: 500
+        probability: 0.05
+        delay: 2s
+        body: '{"error": "Internal server error"}'
+        headers:
+          Content-Type: application/json
+
+  - name: "Retry Example"
+    method: GET
+    path: "/retry"
+    stateful: true
+    state_key: "client_ip"
+    responses:
+      - status: 200
+        condition: "request_count > 2"
+        body: "OK after {{request_count}} attempts"
+        headers:
+          Content-Type: text/plain
+      - status: 503
+        default: true
+        body: "Service Unavailable - attempt {{request_count}}"
+        headers:
+          Content-Type: text/plain
+          Retry-After: "1"
+
+  - name: "Search Products"
+    method: GET
+    path: "/products"
+    responses:
+      - status: 200
+        delay: 125ms
+        body: |
+          {
+            "products": [
+              {"id": "1", "name": "Product A", "price": 29.99},
+              {"id": "2", "name": "Product B", "price": 49.99},
+              {"id": "3", "name": "Product C", "price": 19.99}
+            ],
+            "total": 3,
+            "page": "{{query.page}}",
+            "limit": "{{query.limit}}"
+          }
+        headers:
+          Content-Type: application/json
+      - status: 400
+        condition: "query.page != null and query.page < 1"
+        body: '{"error": "Invalid page number"}'
+        headers:
+          Content-Type: application/json
+
+  - name: "Delayed Response"
+    method: GET
+    path: "/slow"
+    responses:
+      - status: 200
+        delay: 3s
+        body: '{"message": "This response was delayed by 3 seconds"}'
+        headers:
+          Content-Type: application/json
+
+  - name: "Dynamic Response"
+    method: POST
+    path: "/echo"
+    responses:
+      - status: 200
+        body: '{{request_body}}'
+        headers:
+          Content-Type: application/json
+
+  - name: "Metrics Endpoint"
+    method: GET
+    path: "/metrics"
+    responses:
+      - status: 200
+        body: |
+          # HELP molock_requests_total Total number of requests
+          # TYPE molock_requests_total counter
+          molock_requests_total{method="GET",path="/health"} 42
+          molock_requests_total{method="GET",path="/users/:id"} 123
+          molock_requests_total{method="POST",path="/orders"} 56
+        headers:
+          Content-Type: text/plain; version=0.0.4
+
+  - name: "Webhook Simulation"
+    method: POST
+    path: "/webhooks/:provider"
+    responses:
+      - status: 200
+        delay: 100ms
+        body: '{"received": true, "provider": "{{provider}}", "event": "{{body.event}}"}'
+        headers:
+          Content-Type: application/json
+      - status: 202
+        probability: 0.2
+        body: '{"status": "accepted", "processing": true}'
+        headers:
+          Content-Type: application/json
+
+  - name: "Authentication Required"
+    method: GET
+    path: "/secure"
+    responses:
+      - status: 200
+        condition: "headers.authorization == 'Bearer valid-token'"
+        body: '{"message": "Access granted"}'
+        headers:
+          Content-Type: application/json
+      - status: 401
+        default: true
+        body: '{"error": "Unauthorized"}'
+        headers:
+          Content-Type: application/json
+          WWW-Authenticate: 'Bearer realm="Molock"'
+
+  - name: "Rate Limited"
+    method: GET
+    path: "/rate-limited"
+    stateful: true
+    state_key: "client_ip"
+    responses:
+      - status: 429
+        condition: "request_count > 5"
+        body: '{"error": "Too many requests"}'
+        headers:
+          Content-Type: application/json
+          Retry-After: "60"
+          X-RateLimit-Limit: "5"
+          X-RateLimit-Remaining: "0"
+          X-RateLimit-Reset: "{{timestamp_plus_60s}}"
+      - status: 200
+        default: true
+        body: '{"requests_made": "{{request_count}}"}'
+        headers:
+          Content-Type: application/json
+          X-RateLimit-Limit: "5"
+          X-RateLimit-Remaining: "{{5 - request_count}}"
+          X-RateLimit-Reset: "{{timestamp_plus_60s}}"

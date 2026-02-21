@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  molock:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.simple
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info,molock=debug
+      - RUST_LOG_FORMAT=json
+      - MOLOCK_ENABLE_HOT_RELOAD=false
+      - MOLOCK_ENABLE_METRICS=true
+      - MOLOCK_ENABLE_HEALTH=true
+      - MOLOCK_TELEMETRY_DEBUG=true
+    command: ["--config", "/etc/molock/config/benchmark-docker-config.yaml"]
+    volumes:
+      - ../config:/etc/molock/config:ro
+    depends_on:
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - observability
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus metrics
+      - "8890:8890"   # Legacy Prometheus metrics
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:13133/"]
+    networks:
+      - observability
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686" # UI
+      - "14250:14250" # Model.proto
+      - "14268:14268" # HTTP collector
+      - "14317:14317" # OTLP gRPC
+      - "14318:14318" # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=badger
+      - COLLECTOR_OTLP_GRPC_HOST_PORT=0.0.0.0:14317
+      - COLLECTOR_OTLP_HTTP_HOST_PORT=0.0.0.0:14318
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:14269/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - observability
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - observability
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - ./grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./dashboards:/etc/grafana/dashboards
+    depends_on:
+      - prometheus
+      - jaeger
+    networks:
+      - observability
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:

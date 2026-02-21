@@ -1,0 +1,13 @@
+# Grafana dashboards configuration for Molock observability stack
+apiVersion: 1
+
+providers:
+  # Dashboard provider configuration
+  - name: 'default'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards

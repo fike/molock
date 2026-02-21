@@ -1,0 +1,157 @@
+# Cursor Rules for Molock Project
+
+## Code Quality
+- Always run `cargo fmt` before finalizing changes
+- Run `cargo clippy -- -D warnings` and fix all issues
+- Maintain >80% test coverage for new code
+- Follow existing patterns and conventions
+
+## Error Handling
+- Use `anyhow::Result` for application code
+- Use `thiserror::Error` for library errors
+- Include context with `anyhow::Context`
+- Convert to appropriate HTTP errors in handlers
+
+## Documentation
+- Document all public items with `///` comments
+- Include examples for complex functions
+- Update documentation when changing APIs
+- Use markdown in documentation comments
+
+## Test-Driven Development (TDD) - REQUIRED
+- **ALWAYS write failing tests first** before implementation
+- **NEVER** write production code without corresponding tests
+- **ENSURE** 80%+ test coverage for all modified code
+- **USE** `#[cfg(test)]` modules in same file as code
+- **TEST** all error conditions, edge cases, and success paths
+- **MOCK** external dependencies in unit tests
+- **REJECT** any change without adequate test coverage
+- **FOLLOW** Red-Green-Refactor cycle strictly
+- **CHECK** for untested functions using `.agent/scripts/find_untested_functions.sh`
+- **VERIFY** coverage with `make test-coverage` before committing
+
+## Performance
+- Use `async` for I/O operations
+- Avoid blocking in async contexts
+- Use appropriate data structures
+- Profile before optimizing
+
+## Security
+- Validate all user input
+- Use secure defaults
+- Never commit secrets
+- Follow principle of least privilege
+
+## Project Structure
+- Follow the established module structure
+- Add new modules to appropriate parent `mod.rs`
+- Keep related code together
+- Minimize cross-module dependencies
+
+## Commit Messages
+- Use conventional commits format
+- Include scope in parentheses
+- Keep descriptions concise but descriptive
+- Reference issues when applicable
+
+## Dependencies
+- Use minimal feature sets
+- Keep dependencies up to date
+- Consider security implications
+- Document why new dependencies are needed
+
+## Code Review
+- Review your own code before submitting
+- Check for common issues
+- Ensure tests pass
+- Verify documentation is complete
+
+## Telemetry
+- Add spans for important operations
+- Include relevant attributes
+- Use appropriate span levels
+- Follow OpenTelemetry conventions
+
+## Configuration
+- Validate configuration on load
+- Use sensible defaults
+- Document configuration options
+- Support environment variables
+
+## Error Messages
+- Make error messages helpful
+- Include context
+- Avoid exposing internal details
+- Log errors appropriately
+
+## Type Safety
+- Use strong types where possible
+- Avoid stringly-typed code
+- Leverage Rust's type system
+- Use enums for finite states
+
+## Async Patterns
+- Use `tokio::spawn` for concurrent tasks
+- Handle errors in spawned tasks
+- Implement backpressure where needed
+- Use appropriate timeouts
+
+## Memory Management
+- Use `Arc` for shared read-only data
+- Use `Mutex`/`RwLock` for shared mutable data
+- Avoid unnecessary cloning
+- Consider ownership patterns
+
+## Testing Patterns
+- Use property-based testing where appropriate
+- Test both success and failure paths
+- Use fixtures for complex setup
+- Clean up resources after tests
+
+## Documentation Examples
+- Include runnable examples in docs
+- Show common usage patterns
+- Demonstrate error handling
+- Include integration examples
+
+## Code Organization
+- Keep functions focused and small
+- Group related functionality
+- Use modules to organize code
+- Follow single responsibility principle
+
+## Error Recovery
+- Implement graceful degradation
+- Provide useful error messages
+- Log errors for debugging
+- Consider retry logic where appropriate
+
+## Performance Monitoring
+- Add metrics for important operations
+- Monitor resource usage
+- Set up alerts for anomalies
+- Profile regularly
+
+## Security Monitoring
+- Log security-relevant events
+- Monitor for suspicious activity
+- Implement rate limiting
+- Use secure communication
+
+## Deployment Considerations
+- Support configuration via environment
+- Include health checks
+- Implement graceful shutdown
+- Support rolling updates
+
+## Maintenance
+- Document known issues
+- Include troubleshooting guides
+- Provide migration instructions
+- Keep dependencies updated
+
+## Community
+- Be respectful in interactions
+- Provide constructive feedback
+- Help others learn
+- Share knowledge

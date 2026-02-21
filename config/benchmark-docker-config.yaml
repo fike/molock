@@ -1,0 +1,98 @@
+# Benchmark Configuration for Molock with Docker and Observability
+# This configuration is optimized for performance testing with Apache Benchmark
+# and includes telemetry for observability stack integration
+
+server:
+  port: 8080  # Standard port for Docker Compose
+  workers: 4
+  host: "0.0.0.0"
+  max_request_size: 10485760  # 10MB
+
+telemetry:
+  enabled: true  # Enable telemetry for observability
+  service_name: "molock-benchmark"
+  service_version: "0.1.0"
+  endpoint: "http://otel-collector:4318"  # Docker Compose service name (HTTP port)
+  protocol: "http"
+  sampling_rate: 1.0  # Sample all traces for benchmarks
+  log_level: "info"
+  log_format: "json"
+  timeout_seconds: 30
+  export_batch_size: 512
+  export_timeout_millis: 30000
+
+endpoints:
+  # Health endpoint - simple response for baseline testing
+  - name: "Health Check"
+    method: GET
+    path: "/health"
+    responses:
+      - status: 200
+        body: '{"status": "healthy", "timestamp": "{{timestamp}}"}'
+        headers:
+          Content-Type: application/json
+
+  # User endpoints - with path parameters for route matching tests
+  - name: "Get User"
+    method: GET
+    path: "/users/:id"
+    responses:
+      - status: 200
+        delay: 50ms  # Small delay to simulate database lookup
+        body: '{"id": "{{id}}", "name": "Test User", "email": "user@example.com"}'
+        headers:
+          Content-Type: application/json
+      - status: 404
+        condition: "id == 'unknown'"
+        body: '{"error": "User not found"}'
+        headers:
+          Content-Type: application/json
+
+  # Echo endpoint - for POST request testing with JSON
+  - name: "Echo Endpoint"
+    method: POST
+    path: "/echo"
+    responses:
+      - status: 200
+        body: '{{request_body}}'
+        headers:
+          Content-Type: application/json
+
+  # Delayed response - for testing timeout handling
+  - name: "Delayed Response"
+    method: GET
+    path: "/slow"
+    responses:
+      - status: 200
+        delay: 3s
+        body: '{"message": "This response was delayed by 3 seconds"}'
+        headers:
+          Content-Type: application/json
+
+  # Orders endpoint - for POST with business logic simulation
+  - name: "Create Order"
+    method: POST
+    path: "/orders"
+    responses:
+      - status: 201
+        delay: 300ms
+        body: '{"orderId": "{{uuid}}", "status": "created", "timestamp": "{{timestamp}}"}'
+        headers:
+          Content-Type: application/json
+          Location: "/orders/{{uuid}}"
+
+  # Simple metrics endpoint (optional)
+  - name: "Metrics Endpoint"
+    method: GET
+    path: "/metrics"
+    responses:
+      - status: 200
+        body: |
+          # HELP molock_benchmark_requests_total Total benchmark requests
+          # TYPE molock_benchmark_requests_total counter
+          molock_benchmark_requests_total{endpoint="health"} 0
+          molock_benchmark_requests_total{endpoint="users"} 0
+          molock_benchmark_requests_total{endpoint="echo"} 0
+          molock_benchmark_requests_total{endpoint="slow"} 0
+        headers:
+          Content-Type: text/plain; version=0.0.4
