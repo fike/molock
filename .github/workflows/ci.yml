@@ -163,3 +163,34 @@ jobs:
         with:
           base64-detector: true
           exclude-paths: .trufflehog-exclude.txt
+
+  slsa-verify:
+    name: SLSA Verification
+    runs-on: ubuntu-latest
+    needs: secrets-scan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get latest release
+        id: latest_release
+        run: |
+          release=$(gh release list --limit 1 --repo ${{ github.repository }} --json tagName --jq '.[0].tagName')
+          echo "tag=$release" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download release artifacts
+        run: |
+          gh release download ${{ steps.latest_release.outputs.tag }} --repo ${{ github.repository }} --pattern "*.tar.gz" --dir ./artifacts
+          gh release download ${{ steps.latest_release.outputs.tag }} --repo ${{ github.repository }} --pattern "*.intoto.json" --dir ./artifacts
+
+      - name: Verify SLSA provenance
+        uses: slsa-framework/slsa-verifier/actions/verifyGeneric@main
+        with:
+          provenance_path: ./artifacts
+          artifact_path: ./artifacts
+          source_uri: github.com/${{ github.repository }}
+          tag_name: ${{ steps.latest_release.outputs.tag }}
+          commit_sha: ${{ github.sha }}

@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  ARTIFACT_NAME: molock
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Create artifacts directory
+        run: mkdir -p release
+
+      - name: Copy binary
+        run: cp target/release/molock release/
+
+      - name: Create tarball
+        working-directory: release
+        run: |
+          tar -czf ../molock-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz molock
+          mv ../molock-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz ./
+
+      - name: Generate hashes
+        id: hash
+        working-directory: release
+        run: |
+          echo "hashes=$(sha256sum *.tar.gz | head -c 100)" >> $GITHUB_OUTPUT
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: release/*
+
+      - name: Generate SLSA provenance
+        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+        with:
+          base64-subject-input: "${{ steps.hash.outputs.hashes }}"
+          compile-builder: true
+
+  verify:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+
+      - name: Verify SLSA provenance
+        uses: slsa-framework/slsa-verifier/actions/verifyGeneric@main
+        with:
+          provenance_path: ${{ needs.build.outputs.provenance_path }}
+          artifact_path: .
+          source_uri: github.com/${{ github.repository }}
+          tag_name: ${{ github.ref_name }}
+          commit_sha: ${{ github.sha }}
