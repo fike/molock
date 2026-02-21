@@ -184,13 +184,17 @@ jobs:
       - name: Download release artifacts
         run: |
           gh release download ${{ steps.latest_release.outputs.tag }} --repo ${{ github.repository }} --pattern "*.tar.gz" --dir ./artifacts
-          gh release download ${{ steps.latest_release.outputs.tag }} --repo ${{ github.repository }} --pattern "*.intoto.json" --dir ./artifacts
+          gh release download ${{ steps.latest_release.outputs.tag }} --repo ${{ github.repository }} --pattern "*.intoto.jsonl" --dir ./artifacts
+
+      - name: Install SLSA verifier
+        uses: slsa-framework/slsa-verifier/actions/installer@v2.1.0
 
       - name: Verify SLSA provenance
-        uses: slsa-framework/slsa-verifier/actions/verifyGeneric@main
-        with:
-          provenance_path: ./artifacts
-          artifact_path: ./artifacts
-          source_uri: github.com/${{ github.repository }}
-          tag_name: ${{ steps.latest_release.outputs.tag }}
-          commit_sha: ${{ github.sha }}
+        run: |
+          ls -la ./artifacts
+          FILENAME=$(ls ./artifacts/*.tar.gz | head -1)
+          PROVENANCE=$(ls ./artifacts/*.intoto.jsonl | head -1)
+          slsa-verifier verify-artifact "$FILENAME" \
+            --provenance-path "$PROVENANCE" \
+            --source-uri github.com/${{ github.repository }} \
+            --tag-name ${{ steps.latest_release.outputs.tag }}
