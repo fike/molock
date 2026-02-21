@@ -2,14 +2,57 @@
 # https://github.com/gitleaks/gitleaks
 
 [extend]
+# Use default rules
 useDefault = true
 
-# Exclude paths from scanning
+# Additional custom rules
+[[rules]]
+description = "AWS Access Key ID"
+regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+
+[[rules]]
+description = "AWS Secret Access Key"
+regex = '''(?i)(aws_secret_access_key|aws_secret|secret_key)(.*?)['\"][0-9a-zA-Z/+]{40}['\"]'''
+entropy = 3.5
+
+[[rules]]
+description = "GitHub Personal Access Token"
+regex = '''ghp_[0-9a-zA-Z]{36}'''
+
+[[rules]]
+description = "GitHub OAuth Access Token"
+regex = '''gho_[0-9a-zA-Z]{36}'''
+
+[[rules]]
+description = "Slack Token"
+regex = '''xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*'''
+
+[[rules]]
+description = "Generic API Key"
+regex = '''(?i)(api_key|apikey|api_secret|apisecret)(.*?)['\"][0-9a-zA-Z]{20,}['\"]'''
+entropy = 3.0
+
+[[rules]]
+description = "Generic Secret"
+regex = '''(?i)(secret|password|passwd|api_key|apikey|access_token|auth_token|token)(.*?)['\"][^'\"]{8,}['\"]'''
+entropy = 2.5
+
+# Files to exclude from scanning
 [exclude]
-paths = [
-    "tests/",
-    "config/",
-    "target/",
-    ".git/",
-    "deployment/"
+files = [
+    "tests/.*",
+    "test-config.*",
+    ".*test.*",
+    "*.example",
+    "*.sample",
+    "config/molock-config.yaml",
+    "config/benchmark-docker-config.yaml"
+]
+
+# Allowlisted secrets (for testing/development)
+[allowlist]
+description = "Example or test values"
+files = [
+    "tests/.*",
+    "config/.*"
 ]
