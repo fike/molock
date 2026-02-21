@@ -66,11 +66,14 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
 
+      - name: Install SLSA verifier
+        uses: slsa-framework/slsa-verifier/actions/installer@v2.1.0
+
       - name: Verify SLSA provenance
-        uses: slsa-framework/slsa-verifier/actions/verifyGeneric@main
-        with:
-          provenance_path: ${{ needs.provenance.outputs.provenance_path }}
-          artifact_path: .
-          source_uri: github.com/${{ github.repository }}
-          tag_name: ${{ github.ref_name }}
-          commit_sha: ${{ github.sha }}
+        run: |
+          ls -la
+          slsa-verifier verify-artifact molock-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz \
+            --provenance-path ${{ needs.provenance.outputs.provenance_path }} \
+            --source-uri github.com/${{ github.repository }} \
+            --tag-name ${{ github.ref_name }} \
+            --commit-sha ${{ github.sha }}
