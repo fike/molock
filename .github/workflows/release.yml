@@ -15,6 +15,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,19 +29,18 @@ jobs:
         run: mkdir -p release
 
       - name: Copy binary
-        run: cp target/release/molock release/
+        run: cp target/release/molock release/molock
 
       - name: Create tarball
         working-directory: release
         run: |
-          tar -czf ../molock-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz molock
-          mv ../molock-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz ./
+          tar -czf molock-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz molock
 
       - name: Generate hashes
         id: hash
         working-directory: release
         run: |
-          echo "hashes=$(sha256sum *.tar.gz | head -c 100)" >> $GITHUB_OUTPUT
+          echo "hashes=$(sha256sum *.tar.gz | base64 -w0)" >> $GITHUB_OUTPUT
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -47,14 +48,18 @@ jobs:
           name: ${{ env.ARTIFACT_NAME }}
           path: release/*
 
-      - name: Generate SLSA provenance
-        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
-        with:
-          base64-subject-input: "${{ steps.hash.outputs.hashes }}"
-          compile-builder: true
+  provenance:
+    needs: build
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subject-input: "${{ needs.build.outputs.hashes }}"
+      compile-builder: true
+    permissions:
+      contents: write
+      id-token: write
 
   verify:
-    needs: build
+    needs: [build, provenance]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -64,7 +69,7 @@ jobs:
       - name: Verify SLSA provenance
         uses: slsa-framework/slsa-verifier/actions/verifyGeneric@main
         with:
-          provenance_path: ${{ needs.build.outputs.provenance_path }}
+          provenance_path: ${{ needs.provenance.outputs.provenance_path }}
           artifact_path: .
           source_uri: github.com/${{ github.repository }}
           tag_name: ${{ github.ref_name }}
