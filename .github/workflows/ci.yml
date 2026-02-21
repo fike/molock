@@ -70,7 +70,7 @@ jobs:
       - name: Start Docker services
         run: |
           cd deployment
-          docker-compose up -d
+          docker compose up -d
         env:
           COMPOSE_DOCKER_CLI_BUILD: 1
           DOCKER_BUILDKIT: 1
@@ -129,7 +129,7 @@ jobs:
         if: always()
         run: |
           cd deployment
-          docker-compose down
+          docker compose down
 
   security:
     name: Security Audit
@@ -158,7 +158,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+      - name: Run Trufflehog
+        uses: trufflesecurity/trufflehog@main
         with:
-          config-path: .gitleaks.toml
+          base64-detector: true
+          exclude-paths: .trufflehog-exclude.txt
