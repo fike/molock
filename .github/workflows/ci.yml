@@ -169,6 +169,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: secrets-scan
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - uses: actions/checkout@v4
@@ -177,11 +182,18 @@ jobs:
         id: latest_release
         run: |
           release=$(gh release list --limit 1 --repo ${{ github.repository }} --json tagName --jq '.[0].tagName')
-          echo "tag=$release" >> $GITHUB_OUTPUT
+          if [ -n "$release" ]; then
+            echo "tag=$release" >> $GITHUB_OUTPUT
+            echo "has_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag=" >> $GITHUB_OUTPUT
+            echo "has_release=false" >> $GITHUB_OUTPUT
+          fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
 
       - name: Download release artifacts
+        if: steps.latest_release.outputs.has_release == 'true'
         run: |
           gh release download ${{ steps.latest_release.outputs.tag }} --repo ${{ github.repository }} --pattern "*.tar.gz" --dir ./artifacts
           gh release download ${{ steps.latest_release.outputs.tag }} --repo ${{ github.repository }} --pattern "*.intoto.jsonl" --dir ./artifacts
@@ -190,6 +202,7 @@ jobs:
         uses: slsa-framework/slsa-verifier/actions/installer@v2.1.0
 
       - name: Verify SLSA provenance
+        if: steps.latest_release.outputs.has_release == 'true'
         run: |
           ls -la ./artifacts
           FILENAME=$(ls ./artifacts/*.tar.gz | head -1)
