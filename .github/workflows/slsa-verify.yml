@@ -17,17 +17,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get latest release tag
+        id: latest_release
+        run: |
+          release=$(gh release list --limit 1 --repo ${{ github.repository }} \
+            --json tagName --jq '.[0].tagName')
+          echo "tag=$release" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Download release artifacts
         run: |
-          gh release download latest --repo ${{ github.repository }} --pattern "*.tar.gz"
+          gh release download "${{ steps.latest_release.outputs.tag }}" \
+            --repo ${{ github.repository }} \
+            --pattern "*.tar.gz" \
+            --dir ./artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Download SLSA provenance
         run: |
-          gh release download latest --repo ${{ github.repository }} --pattern "*.intoto.json"
+          gh release download "${{ steps.latest_release.outputs.tag }}" \
+            --repo ${{ github.repository }} \
+            --pattern "*.intoto.jsonl" \
+            --dir ./artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Install SLSA verifier
+        uses: slsa-framework/slsa-verifier/actions/installer@v2.1.0
 
       - name: Verify SLSA provenance
-        uses: slsa-framework/slsa-verifier/actions/verifyGeneric@main
-        with:
-          provenance_path: .
-          artifact_path: .
-          source_uri: github.com/${{ github.repository }}
+        run: |
+          ls -la ./artifacts
+          FILENAME=$(ls ./artifacts/*.tar.gz | head -1)
+          PROVENANCE=$(ls ./artifacts/*.intoto.jsonl | head -1)
+          slsa-verifier verify-artifact "$FILENAME" \
+            --provenance-path "$PROVENANCE" \
+            --source-uri github.com/${{ github.repository }} \
+            --tag-name "${{ steps.latest_release.outputs.tag }}"
