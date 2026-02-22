@@ -289,8 +289,10 @@ When running integration tests with Docker:
 - [Serde Documentation](https://serde.rs/)
 
 ### Internal References
-- See `.agent/Skills.md` for technical skills
-- See `CONTRIBUTING.md` for contribution guidelines
+- See `.ai/Skills.md` for technical skills
+- See `.ai/CONTRIBUTING.md` for contribution guidelines
+- See `.ai/TDD_GUIDE.md` for TDD enforcement guide
+- See `.ai/SECURITY.md` for security best practices
 - Check existing code for patterns and conventions
 
 ## Troubleshooting

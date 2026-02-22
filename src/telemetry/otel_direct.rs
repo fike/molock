@@ -83,10 +83,16 @@ pub fn end_span(mut span: Span) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Tests share a global TRACER_PROVIDER, so they must be serialized
+    // to avoid race conditions (e.g., one test setting None while another reads).
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_create_http_server_span_without_initialization() {
-        // Save original provider
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.write().unwrap();
             provider.clone()
@@ -104,14 +110,14 @@ mod tests {
         );
         assert!(span.is_none());
 
-        // Restore original provider
         let mut provider = TRACER_PROVIDER.write().unwrap();
         *provider = original_provider;
     }
 
     #[test]
     fn test_get_tracer_without_initialization() {
-        // Save original provider
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -124,13 +130,14 @@ mod tests {
         let tracer = get_tracer();
         assert!(tracer.is_none());
 
-        // Restore original provider
         let mut provider = TRACER_PROVIDER.write().unwrap();
         *provider = original_provider;
     }
 
     #[test]
     fn test_init_direct_tracer() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -149,6 +156,8 @@ mod tests {
 
     #[test]
     fn test_create_http_server_span_with_initialization() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -173,6 +182,8 @@ mod tests {
 
     #[test]
     fn test_set_http_response_status_code() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -202,6 +213,8 @@ mod tests {
 
     #[test]
     fn test_end_span() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -222,6 +235,8 @@ mod tests {
 
     #[test]
     fn test_create_http_server_span_with_different_methods() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -251,6 +266,8 @@ mod tests {
 
     #[test]
     fn test_create_http_server_span_with_different_paths() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -286,6 +303,8 @@ mod tests {
 
     #[test]
     fn test_semantic_convention_usage() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()

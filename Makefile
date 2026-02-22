@@ -43,10 +43,8 @@ benchmark-run:
 	cargo run --release -- --config config/benchmark-config.yaml
 
 docker-build:
-	@echo "Building Molock binary locally..."
-	cargo build --release
-	@echo "Creating Docker image from pre-built binary..."
-	docker build -f deployment/Dockerfile.simple -t molock .
+	@echo "Building Molock Docker image (multi-stage build)..."
+	docker build -f deployment/Dockerfile -t molock .
 
 docker-run:
 	docker-compose -f deployment/docker-compose.yml up
@@ -97,10 +95,10 @@ benchmark-post:
 	@chmod +x benchmarks/post_benchmark.sh
 	@./benchmarks/post_benchmark.sh
 
-benchmark-docker: docker-build
+benchmark-docker:
 	@echo "Starting observability stack and Molock in Docker..."
-	@echo "Building Docker image if needed..."
-	docker-compose -f deployment/docker-compose.yml up -d
+	@echo "Building Docker image and starting services..."
+	docker-compose -f deployment/docker-compose.yml up -d --build
 	@echo "Waiting for services to start (10 seconds)..."
 	@sleep 10
 	@echo "Running benchmarks against Dockerized Molock..."
