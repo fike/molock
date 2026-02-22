@@ -26,6 +26,8 @@ jobs:
             --json tagName --jq '.[0].tagName')
           echo "tag=$release" >> $GITHUB_OUTPUT
         
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Download release artifacts
         run: |
