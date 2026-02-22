@@ -60,7 +60,7 @@ impl RuleEngine {
             path_params: self.matcher.extract_path_params(&endpoint.path, path),
         };
 
-        self.executor.execute(&endpoint, &context).await
+        self.executor.execute(endpoint, &context).await
     }
 }
 

@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub server: ServerConfig,
     pub telemetry: TelemetryConfig,
@@ -202,28 +202,18 @@ impl Delay {
 
 fn parse_duration_str(duration_str: &str) -> anyhow::Result<Duration> {
     let duration_str = duration_str.trim();
-    if duration_str.ends_with("ms") {
-        let ms = duration_str[..duration_str.len() - 2]
+    if let Some(stripped) = duration_str.strip_suffix("ms") {
+        let ms = stripped
             .parse::<u64>()
             .map_err(|e| anyhow::anyhow!("Invalid milliseconds: {}", e))?;
         Ok(Duration::from_millis(ms))
-    } else if duration_str.ends_with('s') {
-        let secs = duration_str[..duration_str.len() - 1]
+    } else if let Some(stripped) = duration_str.strip_suffix('s') {
+        let secs = stripped
             .parse::<u64>()
             .map_err(|e| anyhow::anyhow!("Invalid seconds: {}", e))?;
         Ok(Duration::from_secs(secs))
     } else {
         anyhow::bail!("Invalid duration format: {}", duration_str);
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            telemetry: TelemetryConfig::default(),
-            endpoints: Vec::new(),
-        }
     }
 }
 

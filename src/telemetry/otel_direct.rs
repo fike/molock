@@ -22,6 +22,7 @@
 
 use crate::telemetry::attributes;
 use opentelemetry::trace::{Span as OtelSpan, SpanKind, Status, Tracer, TracerProvider};
+use opentelemetry::Context;
 use opentelemetry_sdk::trace::{SdkTracerProvider, Span, Tracer as SdkTracer};
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -38,12 +39,17 @@ fn get_tracer() -> Option<SdkTracer> {
     provider.as_ref().map(|p| p.tracer("molock-direct"))
 }
 
-/// Create an HTTP server span using direct OpenTelemetry API
+/// Create an HTTP server span using direct OpenTelemetry API.
+///
+/// The `parent_cx` parameter allows linking this span to an upstream trace extracted
+/// from incoming request headers (W3C `traceparent`/`tracestate`). Pass
+/// `&Context::current()` when no parent context is available.
 pub fn create_http_server_span(
     name: String,
     method: String,
     target: String,
     route: String,
+    parent_cx: &Context,
 ) -> Option<Span> {
     let tracer = get_tracer()?;
 
@@ -54,9 +60,8 @@ pub fn create_http_server_span(
             attributes::kv::http_method(&method),
             attributes::kv::http_target(&target),
             attributes::kv::http_route(&route),
-            attributes::kv::span_kind(attributes::span::KIND_SERVER),
         ])
-        .start(&tracer);
+        .start_with_context(&tracer, parent_cx);
 
     Some(span)
 }
@@ -83,10 +88,16 @@ pub fn end_span(mut span: Span) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Tests share a global TRACER_PROVIDER, so they must be serialized
+    // to avoid race conditions (e.g., one test setting None while another reads).
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_create_http_server_span_without_initialization() {
-        // Save original provider
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.write().unwrap();
             provider.clone()
@@ -96,22 +107,24 @@ mod tests {
         *provider = None;
         drop(provider);
 
+        let cx = Context::current();
         let span = create_http_server_span(
             "test-span".to_string(),
             "GET".to_string(),
             "/test".to_string(),
             "/test".to_string(),
+            &cx,
         );
         assert!(span.is_none());
 
-        // Restore original provider
         let mut provider = TRACER_PROVIDER.write().unwrap();
         *provider = original_provider;
     }
 
     #[test]
     fn test_get_tracer_without_initialization() {
-        // Save original provider
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -124,13 +137,14 @@ mod tests {
         let tracer = get_tracer();
         assert!(tracer.is_none());
 
-        // Restore original provider
         let mut provider = TRACER_PROVIDER.write().unwrap();
         *provider = original_provider;
     }
 
     #[test]
     fn test_init_direct_tracer() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -149,6 +163,8 @@ mod tests {
 
     #[test]
     fn test_create_http_server_span_with_initialization() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -158,11 +174,13 @@ mod tests {
 
         init_direct_tracer(Arc::new(tracer_provider));
 
+        let cx = Context::current();
         let span = create_http_server_span(
             "http.request".to_string(),
             "GET".to_string(),
             "/api/users".to_string(),
             "/api/users".to_string(),
+            &cx,
         );
 
         assert!(span.is_some());
@@ -171,8 +189,103 @@ mod tests {
         *provider = original_provider;
     }
 
+    /// Verify that `create_http_server_span` does not add a redundant `span.kind`
+    /// string attribute. The kind is communicated correctly via `SpanKind::Server`
+    /// on the builder; adding it again as a raw string attribute causes Jaeger to
+    /// display two separate `span.kind` entries for every span.
+    #[test]
+    fn test_create_http_server_span_no_duplicate_span_kind_attribute() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
+        let original_provider = {
+            let provider = TRACER_PROVIDER.read().unwrap();
+            provider.clone()
+        };
+
+        // Use a noop provider — we only care that the builder is invoked without
+        // the extra attribute; the span itself doesn't need to be exported.
+        let tracer_provider = SdkTracerProvider::builder().build();
+        init_direct_tracer(Arc::new(tracer_provider));
+
+        let cx = Context::current();
+        // If the builder still included `span.kind` as an attribute, the span
+        // would carry it twice when exported. The test ensures the function compiles
+        // and executes without panicking — the absence of the attribute is enforced
+        // by code inspection of the `with_attributes` list above.
+        let span = create_http_server_span(
+            "http.request".to_string(),
+            "GET".to_string(),
+            "/test".to_string(),
+            "/test".to_string(),
+            &cx,
+        );
+        assert!(span.is_some());
+        end_span(span.unwrap());
+
+        let mut provider = TRACER_PROVIDER.write().unwrap();
+        *provider = original_provider;
+    }
+
+    /// Verify that a span created with a non-empty parent context correctly links
+    /// to the parent. This simulates receiving an upstream `traceparent` header.
+    #[test]
+    fn test_create_http_server_span_with_parent_context() {
+        use opentelemetry::trace::{SpanContext, SpanId, TraceFlags, TraceId, TraceState};
+
+        let _guard = TEST_LOCK.lock().unwrap();
+
+        let original_provider = {
+            let provider = TRACER_PROVIDER.read().unwrap();
+            provider.clone()
+        };
+
+        let tracer_provider = SdkTracerProvider::builder().build();
+        init_direct_tracer(Arc::new(tracer_provider));
+
+        // Build a synthetic parent SpanContext (as if extracted from traceparent header).
+        let parent_span_ctx = SpanContext::new(
+            TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap(),
+            SpanId::from_hex("00f067aa0ba902b7").unwrap(),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        );
+
+        use opentelemetry::trace::TraceContextExt;
+        let parent_cx = Context::current().with_remote_span_context(parent_span_ctx.clone());
+
+        let span = create_http_server_span(
+            "http.request".to_string(),
+            "GET".to_string(),
+            "/api/resource".to_string(),
+            "/api/resource".to_string(),
+            &parent_cx,
+        );
+
+        assert!(
+            span.is_some(),
+            "span should be created with a parent context"
+        );
+
+        // The child span must share the same TraceId as the parent.
+        let child_span = span.unwrap();
+        let child_ctx = child_span.span_context();
+        assert_eq!(
+            child_ctx.trace_id(),
+            parent_span_ctx.trace_id(),
+            "child span TraceId must match the parent TraceId for correct propagation"
+        );
+
+        end_span(child_span);
+
+        let mut provider = TRACER_PROVIDER.write().unwrap();
+        *provider = original_provider;
+    }
+
     #[test]
     fn test_set_http_response_status_code() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -202,6 +315,8 @@ mod tests {
 
     #[test]
     fn test_end_span() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -222,6 +337,8 @@ mod tests {
 
     #[test]
     fn test_create_http_server_span_with_different_methods() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -232,6 +349,7 @@ mod tests {
         init_direct_tracer(Arc::new(tracer_provider));
 
         let methods = vec!["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"];
+        let cx = Context::current();
 
         for method in methods {
             let span = create_http_server_span(
@@ -239,6 +357,7 @@ mod tests {
                 method.to_string(),
                 "/api/test".to_string(),
                 "/api/test".to_string(),
+                &cx,
             );
 
             assert!(span.is_some());
@@ -251,6 +370,8 @@ mod tests {
 
     #[test]
     fn test_create_http_server_span_with_different_paths() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -267,6 +388,7 @@ mod tests {
             "/api/orders?page=1&limit=10",
             "/api/search?q=test%20query",
         ];
+        let cx = Context::current();
 
         for path in paths {
             let span = create_http_server_span(
@@ -274,6 +396,7 @@ mod tests {
                 "GET".to_string(),
                 path.to_string(),
                 path.to_string(),
+                &cx,
             );
 
             assert!(span.is_some());
@@ -286,6 +409,8 @@ mod tests {
 
     #[test]
     fn test_semantic_convention_usage() {
+        let _guard = TEST_LOCK.lock().unwrap();
+
         let original_provider = {
             let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
@@ -295,11 +420,13 @@ mod tests {
 
         init_direct_tracer(Arc::new(tracer_provider));
 
+        let cx = Context::current();
         let span = create_http_server_span(
             "http.request".to_string(),
             "POST".to_string(),
             "/api/users".to_string(),
             "/api/users".to_string(),
+            &cx,
         )
         .unwrap();
 

@@ -156,7 +156,7 @@ impl ConfigLoader {
         }
 
         if let Some(probability) = response.probability {
-            if probability < 0.0 || probability > 1.0 {
+            if !(0.0..=1.0).contains(&probability) {
                 anyhow::bail!("Probability must be between 0.0 and 1.0");
             }
         }
