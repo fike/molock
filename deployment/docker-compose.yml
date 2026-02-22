@@ -58,7 +58,7 @@ services:
       - COLLECTOR_OTLP_GRPC_HOST_PORT=0.0.0.0:14317
       - COLLECTOR_OTLP_HTTP_HOST_PORT=0.0.0.0:14318
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:14269/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:14269/"]
       interval: 30s
       timeout: 10s
       retries: 3

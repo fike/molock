@@ -40,10 +40,12 @@ pub mod http {
 
 /// Span semantic conventions
 pub mod span {
-    /// Span kind
+    /// Span kind attribute name (kept for reference; prefer `SpanKind` on the builder).
+    #[allow(dead_code)]
     pub const KIND: &str = "span.kind";
 
-    /// Server span kind value
+    /// Server span kind value.
+    #[allow(dead_code)]
     pub const KIND_SERVER: &str = "server";
 }
 
@@ -118,7 +120,8 @@ pub mod kv {
         KeyValue::new(http::RESPONSE_STATUS_CODE, status as i64)
     }
 
-    /// Create a KeyValue for span kind
+    /// Create a KeyValue for span kind (kept for reference; prefer `SpanKind` on the builder).
+    #[allow(dead_code)]
     pub fn span_kind(kind: impl Into<String>) -> KeyValue {
         KeyValue::new(super::span::KIND, kind.into())
     }
