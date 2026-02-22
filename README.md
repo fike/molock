@@ -24,6 +24,30 @@ Molock is a production-ready mock server for CI/CD pipelines, stress testing, an
 - **Docker Ready**: Production-ready container images
 - **Comprehensive Testing**: >80% code coverage with unit and integration tests
 
+## Security & Supply Chain
+
+[![SLSA 2](https://slsa.dev/images/level-2-badge.svg)](https://slsa.dev/level-2)
+
+Molock is committed to supply chain security. The project implements OpenSSF SLSA Level 2 requirements:
+
+- **Provenance**: Cryptographically signed build provenance for all releases
+- **Hosted Build**: All builds run on GitHub Actions (hosted infrastructure)
+- **Verified**: SLSA provenance is automatically verified in CI on main branch
+
+### Verifying Releases
+
+You can verify the authenticity of Molock releases using the SLSA verifier:
+
+```bash
+# Install the SLSA verifier
+go install github.com/slsa-framework/slsa-verifier/cli/slsa-verifier@latest
+
+# Verify a release
+slsa-verifier --provenance-path <provenance-file> --artifact-path <binary> --source-uri github.com/fike/molock
+```
+
+Release artifacts and provenance are available on the [Releases](https://github.com/fike/molock/releases) page.
+
 ## Quick Start
 
 ### Prerequisites

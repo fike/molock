@@ -1,0 +1,33 @@
+name: SLSA Verify
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        run: |
+          gh release download latest --repo ${{ github.repository }} --pattern "*.tar.gz"
+
+      - name: Download SLSA provenance
+        run: |
+          gh release download latest --repo ${{ github.repository }} --pattern "*.intoto.json"
+
+      - name: Verify SLSA provenance
+        uses: slsa-framework/slsa-verifier/actions/verifyGeneric@main
+        with:
+          provenance_path: .
+          artifact_path: .
+          source_uri: github.com/${{ github.repository }}
