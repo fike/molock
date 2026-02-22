@@ -24,12 +24,19 @@ jobs:
         run: |
           release=$(gh release list --limit 1 --repo ${{ github.repository }} \
             --json tagName --jq '.[0].tagName')
-          echo "tag=$release" >> $GITHUB_OUTPUT
+          if [ -n "$release" ]; then
+            echo "tag=$release" >> $GITHUB_OUTPUT
+            echo "has_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag=" >> $GITHUB_OUTPUT
+            echo "has_release=false" >> $GITHUB_OUTPUT
+          fi
         
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Download release artifacts
+        if: steps.latest_release.outputs.has_release == 'true'
         run: |
           gh release download "${{ steps.latest_release.outputs.tag }}" \
             --repo ${{ github.repository }} \
@@ -39,6 +46,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - name: Download SLSA provenance
+        if: steps.latest_release.outputs.has_release == 'true'
         run: |
           gh release download "${{ steps.latest_release.outputs.tag }}" \
             --repo ${{ github.repository }} \
@@ -51,6 +59,7 @@ jobs:
         uses: slsa-framework/slsa-verifier/actions/installer@v2.1.0
 
       - name: Verify SLSA provenance
+        if: steps.latest_release.outputs.has_release == 'true'
         run: |
           ls -la ./artifacts
           FILENAME=$(ls ./artifacts/*.tar.gz | head -1)
