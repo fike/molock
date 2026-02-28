@@ -303,7 +303,7 @@ See `.ai/Agents.md` for detailed guidelines, or `AGENTS.md` for a standardized f
 
 ## License
 
-This project is licensed under the MIT OR Apache-2.0 License - see the LICENSE file for details.
+This project is licensed under the Apache-2.0 License - see the LICENSE file for details.
 
 ## Support
 
