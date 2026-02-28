@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 description = "High-performance mock server for CI/CD pipelines and testing"
 authors = ["Molock Team"]
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/your-org/molock"
+license = "Apache-2.0"
+repository = "https://github.com/fike/molock"
 readme = "README.md"
 
 [features]
