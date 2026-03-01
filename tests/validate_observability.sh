@@ -56,13 +56,14 @@ trap cleanup EXIT
 
 # Wait for Molock to be ready
 echo "Waiting for Molock to start..."
-for i in {1..15}; do
+# Increased timeout to 60 seconds for CI environments where compilation might happen
+for i in {1..60}; do
     if curl -s $MOLOCK_URL/health > /dev/null; then
         echo "Molock is up!"
         break
     fi
-    if [ $i -eq 15 ]; then
-        echo "Error: Molock failed to start."
+    if [ $i -eq 60 ]; then
+        echo "Error: Molock failed to start within 60 seconds."
         cat molock_validation.log
         exit 1
     fi
