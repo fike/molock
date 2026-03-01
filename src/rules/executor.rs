@@ -237,11 +237,9 @@ impl ResponseExecutor {
             result = result.replace(&format!("{{{{{}}}}}", key), value);
         }
 
-        if let Some(query) = context.query.split('?').next() {
-            for param in query.split('&') {
-                if let Some((key, value)) = param.split_once('=') {
-                    result = result.replace(&format!("{{{{query.{}}}}}", key), value);
-                }
+        for param in context.query.split('&') {
+            if let Some((key, value)) = param.split_once('=') {
+                result = result.replace(&format!("{{{{query.{}}}}}", key), value);
             }
         }
 
@@ -369,12 +367,28 @@ mod tests {
         context
             .path_params
             .insert("id".to_string(), "123".to_string());
+        context.query = "name=John&age=30".to_string();
 
-        let template = "User {{id}} from {{client_ip}}";
+        let template = "User {{id}} ({{query.name}}) from {{client_ip}}";
         let result = executor.render_template(template, &context, 1);
 
         assert!(result.contains("123"));
+        assert!(result.contains("John"));
         assert!(result.contains("127.0.0.1"));
+    }
+
+    #[test]
+    fn test_render_template_empty_query() {
+        let state_manager = Arc::new(StateManager::new());
+        let executor = ResponseExecutor::new(state_manager);
+
+        let mut context = create_test_context();
+        context.query = "".to_string();
+
+        let template = "User {{query.name}}";
+        let result = executor.render_template(template, &context, 1);
+
+        assert_eq!(result, "User {{query.name}}");
     }
 
     #[test]
