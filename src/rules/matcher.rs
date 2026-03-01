@@ -350,4 +350,15 @@ mod tests {
         let endpoint = matcher.find_match("GET", "/api/123").unwrap();
         assert_eq!(endpoint.path, "/api/:id");
     }
+
+    #[test]
+    fn test_extract_path_params_duplicate_names() {
+        let endpoints = vec![create_test_endpoint("GET", "/users/:id/posts/:id")];
+        let matcher = RuleMatcher::new(endpoints);
+
+        let params = matcher.extract_path_params("/users/:id/posts/:id", "/users/123/posts/456");
+
+        // It should return the last value for the duplicate parameter name
+        assert_eq!(params.get("id").unwrap(), "456");
+    }
 }
