@@ -139,7 +139,14 @@ async fn process_request(
     let body_str = if body.is_empty() {
         None
     } else {
-        Some(String::from_utf8(body.to_vec())?)
+        match String::from_utf8(body.to_vec()) {
+            Ok(s) => Some(s),
+            Err(_) => {
+                return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": "Invalid UTF-8 sequence in request body"
+                })));
+            }
+        }
     };
 
     let client_ip = req
@@ -179,7 +186,10 @@ async fn process_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::types::Config;
+    use crate::rules::RuleEngine;
     use actix_web::test;
+    use std::sync::Arc;
 
     #[actix_web::test]
     async fn test_health_handler() {
@@ -200,5 +210,27 @@ mod tests {
         let resp = resp.respond_to(&test::TestRequest::default().to_http_request());
         assert_eq!(resp.status(), 200);
         assert_eq!(resp.headers().get("content-type").unwrap(), "text/plain");
+    }
+
+    #[actix_web::test]
+    async fn test_request_handler_invalid_utf8_body() {
+        let mut config = Config::default();
+        config.server.max_request_size = 1024 * 1024;
+        let rule_engine = Arc::new(RuleEngine::new(config.endpoints.clone()));
+        let app_state = web::Data::new(AppState {
+            _config: config,
+            rule_engine,
+        });
+
+        // Create a request with invalid UTF-8 body
+        let invalid_utf8 = vec![0, 159, 146, 150]; // Not valid UTF-8
+        let req = test::TestRequest::post().uri("/api/test").to_http_request();
+        let body = web::Bytes::from(invalid_utf8);
+
+        let resp = request_handler(req, body, app_state).await;
+        let resp = resp.respond_to(&test::TestRequest::default().to_http_request());
+
+        // Should return 400 Bad Request because the body is not valid UTF-8
+        assert_eq!(resp.status(), 400);
     }
 }

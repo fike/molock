@@ -14,20 +14,14 @@
  * limitations under the License.
  */
 
-mod config;
-mod rules;
-mod server;
-mod telemetry;
-mod utils;
-
-use crate::config::ConfigLoader;
-use crate::rules::RuleEngine;
-use crate::server::run_server;
-use crate::telemetry::{init_telemetry, shutdown_telemetry};
-use crate::utils::shutdown_signal;
 use anyhow::Context;
 use arc_swap::ArcSwap;
 use clap::Parser;
+use molock::config::ConfigLoader;
+use molock::rules::RuleEngine;
+use molock::server::run_server;
+use molock::telemetry::{init_telemetry, shutdown_telemetry};
+use molock::utils::shutdown_signal;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::info;

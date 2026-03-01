@@ -25,11 +25,28 @@ pub struct RuleMatcher {
 }
 
 impl RuleMatcher {
-    pub fn new(endpoints: Vec<Endpoint>) -> Self {
+    pub fn new(mut endpoints: Vec<Endpoint>) -> Self {
         let mut path_patterns = HashMap::new();
 
+        // Sort endpoints by specificity:
+        // 1. Static paths (no : or *)
+        // 2. Paths with parameters (:)
+        // 3. Paths with wildcards (*)
+        // Among those, longer paths come first.
+        endpoints.sort_by(|a, b| {
+            let a_score = Self::path_specificity_score(&a.path);
+            let b_score = Self::path_specificity_score(&b.path);
+
+            if a_score != b_score {
+                b_score.cmp(&a_score) // Higher score first
+            } else {
+                b.path.len().cmp(&a.path.len()) // Longer path first
+            }
+        });
+
         for endpoint in &endpoints {
-            let pattern = Self::compile_path_pattern(&endpoint.path);
+            let normalized_path = Self::normalize_path(&endpoint.path);
+            let pattern = Self::compile_path_pattern(&normalized_path);
             path_patterns.insert(endpoint.path.clone(), pattern);
         }
 
@@ -39,13 +56,53 @@ impl RuleMatcher {
         }
     }
 
+    fn path_specificity_score(path: &str) -> u32 {
+        if path.contains('*') {
+            1
+        } else if path.contains(':') {
+            2
+        } else {
+            3
+        }
+    }
+
+    fn normalize_path(path: &str) -> String {
+        let mut normalized = String::new();
+        let mut last_was_slash = false;
+
+        for c in path.chars() {
+            if c == '/' {
+                if !last_was_slash {
+                    normalized.push(c);
+                    last_was_slash = true;
+                }
+            } else {
+                normalized.push(c);
+                last_was_slash = false;
+            }
+        }
+
+        // Remove trailing slash if not the only character
+        if normalized.len() > 1 && normalized.ends_with('/') {
+            normalized.pop();
+        }
+
+        if normalized.is_empty() {
+            "/".to_string()
+        } else {
+            normalized
+        }
+    }
+
     pub fn find_match(&self, method: &str, path: &str) -> anyhow::Result<&Endpoint> {
+        let normalized_request_path = Self::normalize_path(path);
+
         for endpoint in &self.endpoints {
             if endpoint.method.to_uppercase() != method.to_uppercase() {
                 continue;
             }
 
-            if self.matches_path(&endpoint.path, path) {
+            if self.matches_path(&endpoint.path, &normalized_request_path) {
                 return Ok(endpoint);
             }
         }
@@ -59,9 +116,10 @@ impl RuleMatcher {
         request_path: &str,
     ) -> HashMap<String, String> {
         let mut params = HashMap::new();
+        let normalized_request_path = Self::normalize_path(request_path);
 
         if let Some(pattern) = self.path_patterns.get(endpoint_path) {
-            if let Some(captures) = pattern.captures(request_path) {
+            if let Some(captures) = pattern.captures(&normalized_request_path) {
                 let param_names = Self::extract_param_names(endpoint_path);
 
                 for (i, name) in param_names.iter().enumerate() {
@@ -79,7 +137,8 @@ impl RuleMatcher {
         if let Some(pattern) = self.path_patterns.get(endpoint_path) {
             pattern.is_match(request_path)
         } else {
-            endpoint_path == request_path
+            let normalized_endpoint = Self::normalize_path(endpoint_path);
+            normalized_endpoint == request_path
         }
     }
 
@@ -252,5 +311,43 @@ mod tests {
 
         let endpoint = matcher.find_match("get", "/test").unwrap();
         assert_eq!(endpoint.method, "GET");
+    }
+
+    #[test]
+    fn test_find_match_trailing_slash() {
+        let endpoints = vec![create_test_endpoint("GET", "/api/users")];
+        let matcher = RuleMatcher::new(endpoints);
+
+        // Should match even with trailing slash in the request
+        let endpoint = matcher.find_match("GET", "/api/users/").unwrap();
+        assert_eq!(endpoint.path, "/api/users");
+    }
+
+    #[test]
+    fn test_find_match_duplicate_slashes() {
+        let endpoints = vec![create_test_endpoint("GET", "/api/users")];
+        let matcher = RuleMatcher::new(endpoints);
+
+        // Should match even with duplicate slashes in the request
+        let endpoint = matcher.find_match("GET", "//api///users").unwrap();
+        assert_eq!(endpoint.path, "/api/users");
+    }
+
+    #[test]
+    fn test_find_match_precedence() {
+        let endpoints = vec![
+            create_test_endpoint("GET", "/api/*"),
+            create_test_endpoint("GET", "/api/users"),
+            create_test_endpoint("GET", "/api/:id"),
+        ];
+        let matcher = RuleMatcher::new(endpoints);
+
+        // Exact match should win over param or wildcard
+        let endpoint = matcher.find_match("GET", "/api/users").unwrap();
+        assert_eq!(endpoint.path, "/api/users");
+
+        // Param match should win over wildcard
+        let endpoint = matcher.find_match("GET", "/api/123").unwrap();
+        assert_eq!(endpoint.path, "/api/:id");
     }
 }
