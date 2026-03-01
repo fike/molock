@@ -14,7 +14,7 @@ async fn test_integration_path_normalization() {
         workers: 1,
         max_request_size: 1024 * 1024,
     };
-    
+
     config.endpoints = vec![Endpoint {
         name: "Test".to_string(),
         method: "GET".to_string(),
@@ -41,7 +41,7 @@ async fn test_integration_path_normalization() {
     let app = test::init_service(
         App::new()
             .app_data(app_state.clone())
-            .default_service(web::to(molock::server::request_handler))
+            .default_service(web::to(molock::server::request_handler)),
     )
     .await;
 
@@ -103,7 +103,7 @@ async fn test_integration_precedence() {
     let app = test::init_service(
         App::new()
             .app_data(app_state)
-            .default_service(web::to(molock::server::request_handler))
+            .default_service(web::to(molock::server::request_handler)),
     )
     .await;
 
@@ -111,7 +111,7 @@ async fn test_integration_precedence() {
     let req = test::TestRequest::get().uri("/api/users").to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), 200);
-    
+
     let body = test::read_body(resp).await;
     assert_eq!(body, web::Bytes::from_static(b"Static"));
 }
@@ -128,7 +128,7 @@ async fn test_integration_invalid_utf8_body() {
     let app = test::init_service(
         App::new()
             .app_data(app_state)
-            .default_service(web::to(molock::server::request_handler))
+            .default_service(web::to(molock::server::request_handler)),
     )
     .await;
 
@@ -137,7 +137,7 @@ async fn test_integration_invalid_utf8_body() {
         .uri("/any")
         .set_payload(vec![0, 159, 146, 150])
         .to_request();
-    
+
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), 400);
 }

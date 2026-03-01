@@ -224,9 +224,7 @@ mod tests {
 
         // Create a request with invalid UTF-8 body
         let invalid_utf8 = vec![0, 159, 146, 150]; // Not valid UTF-8
-        let req = test::TestRequest::post()
-            .uri("/api/test")
-            .to_http_request();
+        let req = test::TestRequest::post().uri("/api/test").to_http_request();
         let body = web::Bytes::from(invalid_utf8);
 
         let resp = request_handler(req, body, app_state).await;
