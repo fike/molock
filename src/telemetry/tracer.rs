@@ -153,7 +153,7 @@ pub async fn init_tracing(config: &TelemetryConfig) -> anyhow::Result<()> {
     // Create tracer provider with the exporter
     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
         .with_batch_exporter(exporter)
-        .with_resource(resource)
+        .with_resource(resource.clone())
         .with_sampler(opentelemetry_sdk::trace::Sampler::ParentBased(Box::new(
             opentelemetry_sdk::trace::Sampler::TraceIdRatioBased(config.sampling_rate),
         )))
@@ -161,6 +161,54 @@ pub async fn init_tracing(config: &TelemetryConfig) -> anyhow::Result<()> {
 
     // Set as global tracer provider
     opentelemetry::global::set_tracer_provider(tracer_provider.clone());
+
+    // Configure OTLP log exporter based on protocol
+    let log_exporter = match protocol.as_str() {
+        "grpc" => {
+            info!(
+                "Configuring gRPC exporter for logging with endpoint: {}",
+                config.endpoint
+            );
+            opentelemetry_otlp::LogExporter::builder()
+                .with_tonic()
+                .with_endpoint(&config.endpoint)
+                .with_timeout(std::time::Duration::from_secs(config.timeout_seconds))
+                .build()
+        }
+        "http" => {
+            let endpoint = if config.endpoint.contains("/v1/logs") {
+                config.endpoint.clone()
+            } else if config.endpoint.ends_with("/") {
+                format!("{}v1/logs", config.endpoint)
+            } else {
+                format!("{}/v1/logs", config.endpoint)
+            };
+            info!(
+                "Configuring HTTP exporter for logging with endpoint: {}",
+                endpoint
+            );
+            opentelemetry_otlp::LogExporter::builder()
+                .with_http()
+                .with_endpoint(&endpoint)
+                .with_timeout(std::time::Duration::from_secs(config.timeout_seconds))
+                .build()
+        }
+        _ => opentelemetry_otlp::LogExporter::builder()
+            .with_tonic()
+            .with_endpoint(&config.endpoint)
+            .with_timeout(std::time::Duration::from_secs(config.timeout_seconds))
+            .build(),
+    }
+    .map_err(|e| {
+        error!("Failed to build OpenTelemetry log exporter: {}", e);
+        anyhow::anyhow!("OpenTelemetry log exporter build failed: {}", e)
+    })?;
+
+    // Create logger provider with the exporter
+    let logger_provider = opentelemetry_sdk::logs::SdkLoggerProvider::builder()
+        .with_batch_exporter(log_exporter)
+        .with_resource(resource)
+        .build();
 
     // Register W3C TraceContext propagator so incoming traceparent/tracestate headers
     // are extracted and outgoing requests can carry the context forward.
@@ -174,12 +222,15 @@ pub async fn init_tracing(config: &TelemetryConfig) -> anyhow::Result<()> {
     // Initialize direct OpenTelemetry tracer for precise attribute control
     otel_direct::init_direct_tracer(Arc::new(tracer_provider));
 
-    // Initialize tracing subscriber with OpenTelemetry layer
+    // Initialize tracing subscriber with OpenTelemetry layers
     let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+    let otel_log_layer =
+        opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge::new(&logger_provider);
 
     let subscriber = Registry::default()
         .with(tracing_subscriber::EnvFilter::new(&config.log_level))
-        .with(telemetry_layer);
+        .with(telemetry_layer)
+        .with(otel_log_layer);
 
     if config.log_format == "json" {
         let _ = subscriber
@@ -292,12 +343,7 @@ where
                 path.clone(),
                 &parent_cx,
             ) {
-                Some(span) => {
-                    tracing::debug!(
-                        "[TELEMETRY DEBUG] Direct OpenTelemetry span created successfully"
-                    );
-                    span
-                }
+                Some(span) => span,
                 None => {
                     // Fallback: use a tracing span when the OTel SDK is not initialized.
                     // Still attempt to honour the upstream traceparent via
