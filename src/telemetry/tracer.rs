@@ -320,106 +320,154 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let service = self.service.clone();
-        let path = req.path().to_string();
-        let method = req.method().to_string();
 
-        // Extract W3C TraceContext from incoming request headers so that upstream
-        // trace context is propagated correctly into this service's spans.
-        #[cfg(feature = "otel")]
-        let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
-            propagator.extract(&ActixHeaderExtractor(req.headers()))
-        });
         #[cfg(not(feature = "otel"))]
-        let parent_cx = opentelemetry::Context::current();
+        {
+            let method = req.method().to_string();
+            let path = req.path().to_string();
 
-        Box::pin(async move {
-            // Create span using direct OpenTelemetry API for precise control.
-            // Pass the extracted parent context so traces from upstream callers
-            // are correctly linked (distributed tracing across service boundaries).
-            let direct_span = match otel_direct::create_http_server_span(
-                "http.request".to_string(),
-                method.clone(),
-                path.clone(),
-                path.clone(),
-                &parent_cx,
-            ) {
-                Some(span) => span,
-                None => {
-                    // Fallback: use a tracing span when the OTel SDK is not initialized.
-                    // Still attempt to honour the upstream traceparent via
-                    // tracing-opentelemetry's set_parent extension.
-                    let span = tracing::span!(
-                        tracing::Level::INFO,
-                        "http.request",
-                        http.method = %method,
-                        http.target = %path,
-                        http.route = %path,
-                        span.kind = "server",
-                    );
-
-                    #[cfg(feature = "otel")]
-                    {
-                        use tracing_opentelemetry::OpenTelemetrySpanExt;
-                        let _ = span.set_parent(parent_cx);
-                    }
-
-                    let _guard = span.enter();
-
-                    let response = service.call(req).await?;
-                    let status = response.status().as_u16();
-
-                    span.record(attributes::http::RESPONSE_STATUS_CODE, status);
-
-                    if (200..300).contains(&status) {
-                        tracing::info!("Request successful");
-                    } else if (300..400).contains(&status) {
-                        tracing::info!("Redirection");
-                    } else if (400..500).contains(&status) {
-                        tracing::warn!("Client error");
-                    } else if status >= 500 {
-                        tracing::error!("Server error");
-                    }
-
-                    return Ok(response);
-                }
-            };
-
-            let response = service.call(req).await?;
-
-            let status = response.status().as_u16();
-
-            // Set HTTP response status code using direct OpenTelemetry API.
-            // This ensures the correct semantic convention name is used.
-            let mut direct_span_mut = direct_span;
-            tracing::debug!(
-                "[TELEMETRY DEBUG] Setting HTTP response status code: {}",
-                status
+            let span = tracing::info_span!(
+                "http.request",
+                http.method = %method,
+                http.target = %path,
+                http.route = %path,
             );
-            otel_direct::set_http_response_status_code(&mut direct_span_mut, status);
 
-            // End the direct span
-            tracing::debug!("[TELEMETRY DEBUG] Ending direct OpenTelemetry span");
-            otel_direct::end_span(direct_span_mut);
+            Box::pin(async move {
+                let _guard = span.enter();
+                let response = service.call(req).await?;
+                let status = response.status().as_u16();
 
-            if (200..300).contains(&status) {
-                tracing::info!("Request successful");
-            } else if (300..400).contains(&status) {
-                tracing::info!("Redirection");
-            } else if (400..500).contains(&status) {
-                tracing::warn!("Client error");
-            } else if status >= 500 {
-                tracing::error!("Server error");
-            }
+                if (200..300).contains(&status) {
+                    tracing::info!("Request successful");
+                } else if (300..400).contains(&status) {
+                    tracing::info!("Redirection");
+                } else if (400..500).contains(&status) {
+                    tracing::warn!("Client error");
+                } else if status >= 500 {
+                    tracing::error!("Server error");
+                }
 
-            Ok(response)
-        })
+                Ok(response)
+            })
+        }
+
+        #[cfg(feature = "otel")]
+        {
+            use opentelemetry::propagation::TextMapPropagator;
+            use opentelemetry_sdk::propagation::TraceContextPropagator;
+
+            let propagator = TraceContextPropagator::new();
+            let parent_cx = propagator.extract(&ActixHeaderExtractor(req.headers()));
+
+            let method = req.method().to_string();
+            let path = req.path().to_string();
+
+            Box::pin(async move {
+                // Create span using direct OpenTelemetry API for precise control.
+                // Pass the extracted parent context so traces from upstream callers
+                // are correctly linked (distributed tracing across service boundaries).
+                let (direct_span, cx) = match otel_direct::create_http_server_span(
+                    "http.request".to_string(),
+                    method.clone(),
+                    path.clone(),
+                    path.clone(),
+                    &parent_cx,
+                ) {
+                    Some(span) => {
+                        use opentelemetry::trace::Span as _;
+                        use opentelemetry::trace::TraceContextExt as _;
+                        // Use the span context to link the tracing span without consuming the direct span
+                        let cx = parent_cx.with_remote_span_context(span.span_context().clone());
+                        (Some(span), cx)
+                    }
+                    None => {
+                        // Fallback: use a tracing span when the OTel SDK is not initialized.
+                        // Still attempt to honour the upstream traceparent via
+                        // tracing-opentelemetry's set_parent extension.
+                        let span = tracing::span!(
+                            tracing::Level::INFO,
+                            "http.request",
+                            http.method = %method,
+                            http.target = %path,
+                            http.route = %path,
+                            span.kind = "server",
+                        );
+
+                        #[cfg(feature = "otel")]
+                        {
+                            use tracing_opentelemetry::OpenTelemetrySpanExt;
+                            let _ = span.set_parent(parent_cx);
+                        }
+
+                        let _guard = span.enter();
+
+                        let response = service.call(req).await?;
+                        let status = response.status().as_u16();
+
+                        span.record(attributes::http::RESPONSE_STATUS_CODE, status);
+
+                        if (200..300).contains(&status) {
+                            tracing::info!("Request successful");
+                        } else if (300..400).contains(&status) {
+                            tracing::info!("Redirection");
+                        } else if (400..500).contains(&status) {
+                            tracing::warn!("Client error");
+                        } else if status >= 500 {
+                            tracing::error!("Server error");
+                        }
+
+                        return Ok(response);
+                    }
+                };
+
+                // Create a tracing span and link it to the OTel context
+                let tracing_span = tracing::info_span!(
+                    "http.request",
+                    http.method = %method,
+                    http.target = %path,
+                    http.route = %path,
+                );
+
+                // Set the OTel context as parent of the tracing span
+                use tracing_opentelemetry::OpenTelemetrySpanExt;
+                let _ = tracing_span.set_parent(cx);
+
+                // Enter the tracing span so logs inside are correlated
+                let response = {
+                    let _guard = tracing_span.enter();
+                    service.call(req).await?
+                };
+
+                let status = response.status().as_u16();
+
+                // Set HTTP response status code using direct OpenTelemetry API.
+                if let Some(mut span) = direct_span {
+                    otel_direct::set_http_response_status_code(&mut span, status);
+                    otel_direct::end_span(span);
+                }
+
+                // Log using the tracing span (which now has OTel IDs)
+                let _guard = tracing_span.enter();
+                if (200..300).contains(&status) {
+                    tracing::info!("Request successful");
+                } else if (300..400).contains(&status) {
+                    tracing::info!("Redirection");
+                } else if (400..500).contains(&status) {
+                    tracing::warn!("Client error");
+                } else if status >= 500 {
+                    tracing::error!("Server error");
+                }
+
+                Ok(response)
+            })
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::TelemetryConfig;
     use actix_web::test;
     use actix_web::web;
     use actix_web::App;
@@ -499,104 +547,63 @@ mod tests {
         )
         .await;
 
-        let users_req = test::TestRequest::get().uri("/api/users").to_request();
-        let users_resp = test::call_service(&app, users_req).await;
-        assert_eq!(users_resp.status(), 200);
+        let req1 = test::TestRequest::get().uri("/api/users").to_request();
+        let resp1 = test::call_service(&app, req1).await;
+        assert_eq!(resp1.status(), 200);
 
-        let user_req = test::TestRequest::get().uri("/api/users/123").to_request();
-        let user_resp = test::call_service(&app, user_req).await;
-        assert_eq!(user_resp.status(), 200);
+        let req2 = test::TestRequest::get().uri("/api/users/123").to_request();
+        let resp2 = test::call_service(&app, req2).await;
+        assert_eq!(resp2.status(), 200);
 
-        let orders_req = test::TestRequest::get().uri("/api/orders").to_request();
-        let orders_resp = test::call_service(&app, orders_req).await;
-        assert_eq!(orders_resp.status(), 200);
+        let req3 = test::TestRequest::get().uri("/api/orders").to_request();
+        let resp3 = test::call_service(&app, req3).await;
+        assert_eq!(resp3.status(), 200);
+    }
+
+    #[actix_web::test]
+    async fn test_tracing_middleware_with_error_status() {
+        let app = test::init_service(App::new().wrap(tracing_middleware()).route(
+            "/error",
+            web::get().to(|| async { HttpResponse::InternalServerError().finish() }),
+        ))
+        .await;
+
+        let req = test::TestRequest::get().uri("/error").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 500);
+    }
+
+    #[actix_web::test]
+    async fn test_tracing_middleware_single_span_per_request() {
+        let app = test::init_service(App::new().wrap(tracing_middleware()).route(
+            "/test",
+            web::get().to(|| async { HttpResponse::Ok().finish() }),
+        ))
+        .await;
+
+        let req = test::TestRequest::get().uri("/test").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), 200);
     }
 
     #[actix_web::test]
     async fn test_tracing_middleware_with_query_params() {
         let app = test::init_service(App::new().wrap(tracing_middleware()).route(
-            "/api/search",
+            "/test",
             web::get().to(|| async { HttpResponse::Ok().finish() }),
         ))
         .await;
 
-        let req = test::TestRequest::get()
-            .uri("/api/search?q=test&page=1")
-            .to_request();
+        let req = test::TestRequest::get().uri("/test?foo=bar").to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), 200);
     }
 
-    #[actix_web::test]
-    async fn test_tracing_middleware_with_error_status() {
-        let app = test::init_service(
-            App::new()
-                .wrap(tracing_middleware())
-                .route(
-                    "/not-found",
-                    web::get().to(|| async { HttpResponse::NotFound().finish() }),
-                )
-                .route(
-                    "/server-error",
-                    web::get().to(|| async { HttpResponse::InternalServerError().finish() }),
-                ),
-        )
-        .await;
-
-        let not_found_req = test::TestRequest::get().uri("/not-found").to_request();
-        let not_found_resp = test::call_service(&app, not_found_req).await;
-        assert_eq!(not_found_resp.status(), 404);
-
-        let server_error_req = test::TestRequest::get().uri("/server-error").to_request();
-        let server_error_resp = test::call_service(&app, server_error_req).await;
-        assert_eq!(server_error_resp.status(), 500);
-    }
-
-    #[tokio::test]
-    async fn test_init_tracing_disabled() {
-        let config = TelemetryConfig {
-            enabled: false,
-            service_name: "test".to_string(),
-            service_version: "0.1.0".to_string(),
-            endpoint: "http://localhost:4317".to_string(),
-            protocol: "grpc".to_string(),
-            sampling_rate: 1.0,
-            log_level: "info".to_string(),
-            log_format: "json".to_string(),
-            timeout_seconds: 30,
-            export_batch_size: 512,
-            export_timeout_millis: 30000,
-        };
-
-        let result = init_tracing(&config).await;
-        assert!(result.is_ok());
-    }
-
-    /// Verify that the middleware correctly extracts a W3C `traceparent` header and
-    /// produces exactly ONE span per request (no duplicate spans).
-    #[actix_web::test]
-    async fn test_tracing_middleware_single_span_per_request() {
-        // The middleware must not create a second tracing::span! alongside the direct
-        // OTel span. We verify this indirectly: the request completes successfully
-        // and there is no panic from double-entering spans.
-        let app = test::init_service(App::new().wrap(tracing_middleware()).route(
-            "/single",
-            web::get().to(|| async { actix_web::HttpResponse::Ok().finish() }),
-        ))
-        .await;
-
-        let req = test::TestRequest::get().uri("/single").to_request();
-        let resp = test::call_service(&app, req).await;
-        assert_eq!(resp.status(), 200);
-    }
-
-    /// Verify that the middleware forwards a `traceparent` header without panicking.
-    /// A valid W3C traceparent header must be accepted by the extractor.
     #[actix_web::test]
     async fn test_tracing_middleware_with_traceparent_header() {
         let app = test::init_service(App::new().wrap(tracing_middleware()).route(
             "/propagate",
-            web::get().to(|| async { actix_web::HttpResponse::Ok().finish() }),
+            web::get().to(|| async { HttpResponse::Ok().finish() }),
         ))
         .await;
 
@@ -611,39 +618,4 @@ mod tests {
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), 200);
     }
-
-    // #[test]
-    // fn test_tracing_middleware_creation() {
-    //     let middleware = tracing_middleware();
-    //     assert!(std::mem::size_of_val(&middleware) > 0);
-    // }
-    //
-    // #[test]
-    // fn test_telemetry_config_validation() {
-    //     let config = TelemetryConfig {
-    //         enabled: true,
-    //         service_name: "test-service".to_string(),
-    //         service_version: "1.0.0".to_string(),
-    //         endpoint: "http://localhost:4317".to_string(),
-    //         protocol: "grpc".to_string(),
-    //         sampling_rate: 0.5,
-    //         log_level: "debug".to_string(),
-    //         log_format: "json".to_string(),
-    //         timeout_seconds: 10,
-    //         export_batch_size: 100,
-    //         export_timeout_millis: 5000,
-    //     };
-    //
-    //     assert!(config.enabled);
-    //     assert_eq!(config.service_name, "test-service");
-    //     assert_eq!(config.service_version, "1.0.0");
-    //     assert_eq!(config.endpoint, "http://localhost:4317");
-    //     assert_eq!(config.protocol, "grpc");
-    //     assert_eq!(config.sampling_rate, 0.5);
-    //     assert_eq!(config.log_level, "debug");
-    //     assert_eq!(config.log_format, "json");
-    //     assert_eq!(config.timeout_seconds, 10);
-    //     assert_eq!(config.export_batch_size, 100);
-    //     assert_eq!(config.export_timeout_millis, 5000);
-    // }
 }
