@@ -296,7 +296,8 @@ When encountering untested legacy code:
 
 ## Quality Checklist
 
-Before submitting changes:
+Before submitting changes or performing a `git push`:
+- [ ] **MANDATORY**: Run `make pre-push` to execute the full validation pipeline (fmt, lint, unit tests, integration tests, and observability validation).
 - [ ] **TDD FOLLOWED**: Tests written before implementation
 - [ ] **ALL TESTS PASS**: `cargo test --lib` shows 0 failures
 - [ ] **COVERAGE MET**: `make test-coverage` shows >=80% coverage
