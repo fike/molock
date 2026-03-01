@@ -7,6 +7,8 @@ authors = ["Molock Team"]
 license = "Apache-2.0"
 repository = "https://github.com/fike/molock"
 readme = "README.md"
+keywords = ["mock-server", "testing", "ci-cd", "http", "actix-web", "opentelemetry"]
+categories = ["web-programming::http-server", "development-tools::testing"]
 
 [features]
 default = ["otel"]
