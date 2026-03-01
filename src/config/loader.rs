@@ -27,10 +27,10 @@ impl ConfigLoader {
         let content = fs::read_to_string(&path)
             .with_context(|| format!("Failed to read config file: {:?}", path.as_ref()))?;
 
-        Self::from_str(&content)
+        Self::parse_str(&content)
     }
 
-    pub fn from_str(content: &str) -> anyhow::Result<Config> {
+    pub fn parse_str(content: &str) -> anyhow::Result<Config> {
         let config: Config =
             serde_yaml::from_str(content).with_context(|| "Failed to parse YAML configuration")?;
 
@@ -198,7 +198,7 @@ endpoints:
         body: "OK"
         "#;
 
-        let config = ConfigLoader::from_str(config_str).unwrap();
+        let config = ConfigLoader::parse_str(config_str).unwrap();
         assert_eq!(config.server.port, 8080);
         assert_eq!(config.endpoints.len(), 1);
         assert_eq!(config.endpoints[0].name, "Test");
@@ -220,7 +220,7 @@ logging:
 endpoints: []
         "#;
 
-        let result = ConfigLoader::from_str(config_str);
+        let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("port cannot be 0"));
     }
@@ -242,7 +242,7 @@ logging:
 endpoints: []
         "#;
 
-        let result = ConfigLoader::from_str(config_str);
+        let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -271,7 +271,7 @@ endpoints:
       - status: 200
         "#;
 
-        let result = ConfigLoader::from_str(config_str);
+        let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -303,7 +303,7 @@ endpoints:
         default: true
         "#;
 
-        let result = ConfigLoader::from_str(config_str);
+        let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -333,7 +333,7 @@ endpoints:
         delay: "invalid"
         "#;
 
-        let result = ConfigLoader::from_str(config_str);
+        let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -356,7 +356,7 @@ telemetry:
 endpoints: []
         "#;
 
-        let result = ConfigLoader::from_str(config_str);
+        let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -379,7 +379,7 @@ telemetry:
 endpoints: []
         "#;
 
-        let result = ConfigLoader::from_str(config_str);
+        let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -406,7 +406,7 @@ telemetry:
 endpoints: []
         "#;
 
-        let config = ConfigLoader::from_str(config_str).unwrap();
+        let config = ConfigLoader::parse_str(config_str).unwrap();
         assert!(config.telemetry.enabled);
         assert_eq!(config.telemetry.endpoint, "http://localhost:4318");
         assert_eq!(config.telemetry.protocol, "http");
@@ -428,7 +428,7 @@ telemetry:
 endpoints: []
         "#;
 
-        let config = ConfigLoader::from_str(config_str).unwrap();
+        let config = ConfigLoader::parse_str(config_str).unwrap();
         assert!(config.telemetry.enabled);
         assert_eq!(config.telemetry.endpoint, "http://localhost:4317");
         assert_eq!(config.telemetry.protocol, "grpc");
