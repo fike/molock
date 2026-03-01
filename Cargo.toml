@@ -12,7 +12,7 @@ categories = ["web-programming::http-server", "development-tools::testing"]
 
 [features]
 default = ["otel"]
-otel = ["opentelemetry", "opentelemetry_sdk", "opentelemetry-otlp", "opentelemetry-http", "tracing-opentelemetry"]
+otel = ["opentelemetry", "opentelemetry_sdk", "opentelemetry-otlp", "opentelemetry-http", "tracing-opentelemetry", "opentelemetry-appender-tracing"]
 hot-reload = ["notify"]
 
 [dependencies]
@@ -43,10 +43,11 @@ mime = "0.3"
 
 # OpenTelemetry dependencies
 opentelemetry = { version = "0.31", features = ["metrics", "trace", "logs"], optional = true }
-opentelemetry_sdk = { version = "0.31", features = ["rt-tokio", "trace"], optional = true }
+opentelemetry_sdk = { version = "0.31", features = ["rt-tokio", "trace", "logs"], optional = true }
 opentelemetry-otlp = { version = "0.31", features = ["grpc-tonic", "http-proto", "logs", "reqwest"], optional = true }
 opentelemetry-http = { version = "0.31", optional = true }
 opentelemetry-semantic-conventions = { version = "0.31", optional = true }
+opentelemetry-appender-tracing = { version = "0.31", optional = true }
 tracing-opentelemetry = { version = "0.32", optional = true }
 
 # Hot reload

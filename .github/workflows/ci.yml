@@ -41,7 +41,7 @@ jobs:
         run: cargo clippy 2>&1 | grep -E "^error:" || true
 
       - name: Run unit tests
-        run: cargo test -- --test-threads=1
+        run: cargo test --features otel -- --test-threads=1
 
   integration:
     name: Integration Tests
@@ -70,7 +70,7 @@ jobs:
       - name: Start Docker services
         run: |
           cd deployment
-          docker compose up -d
+          docker compose up -d otel-collector jaeger prometheus
         env:
           COMPOSE_DOCKER_CLI_BUILD: 1
           DOCKER_BUILDKIT: 1
@@ -78,52 +78,16 @@ jobs:
       - name: Wait for services
         run: sleep 15
 
-      - name: Check Molock health
+      - name: Build binary with OTel features
+        run: cargo build --features otel
+
+      - name: Run all integration tests
+        run: cargo test --features otel --test integration_test --test corner_cases_integration_test
+
+      - name: Validate Observability
         run: |
-          curl -s http://localhost:8080/health || exit 1
-
-      - name: Run integration tests
-        run: cargo test --test integration_test
-
-      - name: Generate traffic for observability
-        run: |
-          for i in {1..200}; do
-            curl -s http://localhost:8080/health > /dev/null
-            curl -s http://localhost:8080/users/123 > /dev/null
-            curl -s http://localhost:8080/products > /dev/null
-            curl -s http://localhost:8080/api/test > /dev/null
-            curl -s http://localhost:8080/users > /dev/null
-            curl -s http://localhost:8080/orders > /dev/null
-          done
-
-      - name: Wait for traces export
-        run: sleep 20
-
-      - name: Check observability
-        run: |
-          # Check Prometheus (required)
-          if curl -s http://localhost:8889/metrics > /dev/null; then
-            echo "✓ Prometheus: Metrics available"
-          else
-            echo "✗ Prometheus: Metrics not available"
-            exit 1
-          fi
-
-          # Check OpenAPI (required)
-          if curl -s http://localhost:8080/api-docs/openapi.json > /dev/null; then
-            echo "✓ OpenAPI: Documentation available"
-          else
-            echo "✗ OpenAPI: Documentation not available"
-            exit 1
-          fi
-
-          # Check Jaeger (required)
-          if curl -s http://localhost:16686/api/services 2>/dev/null | grep -q "molock"; then
-            echo "✓ Jaeger: Traces available"
-          else
-            echo "✗ Jaeger: Traces not available"
-            exit 1
-          fi
+          chmod +x tests/validate_observability.sh
+          ./tests/validate_observability.sh
 
       - name: Stop Docker services
         if: always()

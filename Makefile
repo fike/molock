@@ -1,9 +1,11 @@
-.PHONY: build test test-coverage run docker-build docker-run docker-down clean lint fmt help benchmark benchmark-all benchmark-health benchmark-users benchmark-delay benchmark-post benchmark-docker observability-up observability-down
+.PHONY: build test test-coverage run docker-build docker-run docker-down clean lint fmt help benchmark benchmark-all benchmark-health benchmark-users benchmark-delay benchmark-post benchmark-docker observability-up observability-down test-full pre-push
 
 help:
 	@echo "Available targets:"
 	@echo "  build        - Build release binary"
-	@echo "  test         - Run all tests"
+	@echo "  test         - Run all unit and integration tests"
+	@echo "  test-full    - Run unit/integration tests + observability validation"
+	@echo "  pre-push     - Full quality check (fmt, lint, test-full) before pushing"
 	@echo "  test-coverage - Run tests with coverage report"
 	@echo "  run          - Run the application"
 	@echo "  docker-build - Build Docker image"
@@ -131,3 +133,19 @@ observability-up:
 
 observability-down:
 	docker-compose -f deployment/docker-compose.yml down
+
+test-full:
+	@echo "Running unit and integration tests..."
+	cargo test --features otel
+	@echo "Starting observability stack for validation..."
+	docker-compose -f deployment/docker-compose.yml up -d otel-collector jaeger prometheus
+	@echo "Waiting for stack to be ready (10 seconds)..."
+	@sleep 10
+	@echo "Running observability validation script..."
+	@./tests/validate_observability.sh
+	@echo "Stopping observability stack..."
+	$(MAKE) observability-down
+
+pre-push: fmt lint test-full
+	@echo ""
+	@echo "✅ All checks passed! Ready to push."
