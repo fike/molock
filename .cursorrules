@@ -27,7 +27,7 @@
 - **MOCK** external dependencies in unit tests
 - **REJECT** any change without adequate test coverage
 - **FOLLOW** Red-Green-Refactor cycle strictly
-- **CHECK** for untested functions using `.agent/scripts/find_untested_functions.sh`
+- **CHECK** for untested functions using `.agents/core-engineering/scripts/find_untested_functions.sh`
 - **VERIFY** coverage with `make test-coverage` before committing
 
 ## Performance
