@@ -296,6 +296,8 @@ mod tests {
                 probability: None,
                 default: false,
             }],
+            schema: None,
+            schema_file: None,
         }
     }
 

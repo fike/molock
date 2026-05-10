@@ -61,6 +61,9 @@ utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 # Conditional evaluation
 eval = "0.4"
 
+# JSON Schema validation
+jsonschema = "0.26"
+
 # HTTP client for connectivity testing
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 
