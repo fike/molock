@@ -107,3 +107,6 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+
+# Gemini CLI
+.gemini/
