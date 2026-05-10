@@ -38,11 +38,17 @@ use std::collections::HashMap;
 pub struct RuleMatcher {
     endpoints: Vec<Endpoint>,
     path_patterns: HashMap<String, Regex>,
+    custom_path_regexes: HashMap<String, Regex>,
+    headers_regexes: HashMap<String, HashMap<String, Regex>>,
+    query_regexes: HashMap<String, HashMap<String, Regex>>,
 }
 
 impl RuleMatcher {
     pub fn new(mut endpoints: Vec<Endpoint>) -> Self {
         let mut path_patterns = HashMap::new();
+        let mut custom_path_regexes = HashMap::new();
+        let mut headers_regexes = HashMap::new();
+        let mut query_regexes = HashMap::new();
 
         // Sort endpoints by specificity:
         // 1. Static paths (no : or *)
@@ -64,11 +70,40 @@ impl RuleMatcher {
             let normalized_path = Self::normalize_path(&endpoint.path);
             let pattern = Self::compile_path_pattern(&normalized_path);
             path_patterns.insert(endpoint.path.clone(), pattern);
+
+            if let Some(ref path_regex_str) = endpoint.path_regex {
+                if let Ok(re) = Regex::new(path_regex_str) {
+                    custom_path_regexes.insert(endpoint.name.clone(), re);
+                }
+            }
+
+            if let Some(ref headers_regex_map) = endpoint.headers_regex {
+                let mut re_map = HashMap::new();
+                for (header, re_str) in headers_regex_map {
+                    if let Ok(re) = Regex::new(re_str) {
+                        re_map.insert(header.clone(), re);
+                    }
+                }
+                headers_regexes.insert(endpoint.name.clone(), re_map);
+            }
+
+            if let Some(ref query_regex_map) = endpoint.query_regex {
+                let mut re_map = HashMap::new();
+                for (param, re_str) in query_regex_map {
+                    if let Ok(re) = Regex::new(re_str) {
+                        re_map.insert(param.clone(), re);
+                    }
+                }
+                query_regexes.insert(endpoint.name.clone(), re_map);
+            }
         }
 
         Self {
             endpoints,
             path_patterns,
+            custom_path_regexes,
+            headers_regexes,
+            query_regexes,
         }
     }
 
@@ -109,8 +144,17 @@ impl RuleMatcher {
             normalized
         }
     }
-
     pub fn find_match(&self, method: &str, path: &str) -> anyhow::Result<&Endpoint> {
+        self.find_match_with_context(method, path, &HashMap::new(), "")
+    }
+
+    pub fn find_match_with_context(
+        &self,
+        method: &str,
+        path: &str,
+        headers: &HashMap<String, String>,
+        query: &str,
+    ) -> anyhow::Result<&Endpoint> {
         let normalized_request_path = Self::normalize_path(path);
 
         for endpoint in &self.endpoints {
@@ -118,12 +162,76 @@ impl RuleMatcher {
                 continue;
             }
 
-            if self.matches_path(&endpoint.path, &normalized_request_path) {
-                return Ok(endpoint);
+            // 1. Match Path (Exact/Param/Wildcard OR Custom Regex)
+            let path_matches = if let Some(re) = self.custom_path_regexes.get(&endpoint.name) {
+                re.is_match(&normalized_request_path)
+            } else {
+                self.matches_path(&endpoint.path, &normalized_request_path)
+            };
+
+            if !path_matches {
+                continue;
             }
+
+            // 2. Match Headers Regex
+            if !self.matches_headers(&endpoint.name, headers) {
+                continue;
+            }
+
+            // 3. Match Query Regex
+            if !self.matches_query(&endpoint.name, query) {
+                continue;
+            }
+
+            return Ok(endpoint);
         }
 
         anyhow::bail!("No matching endpoint found for {} {}", method, path)
+    }
+
+    fn matches_headers(&self, endpoint_name: &str, headers: &HashMap<String, String>) -> bool {
+        if let Some(re_map) = self.headers_regexes.get(endpoint_name) {
+            for (header_name, re) in re_map {
+                // Headers in actix-web are usually lowercase in keys when converted to HashMap
+                // but let's be safe and check case-insensitively for the key.
+                let value = headers
+                    .get(header_name)
+                    .or_else(|| headers.get(&header_name.to_lowercase()));
+
+                match value {
+                    Some(v) => {
+                        if !re.is_match(v) {
+                            return false;
+                        }
+                    }
+                    None => return false, // Required header missing
+                }
+            }
+        }
+        true
+    }
+
+    fn matches_query(&self, endpoint_name: &str, query: &str) -> bool {
+        if let Some(re_map) = self.query_regexes.get(endpoint_name) {
+            // Parse query string into a map
+            let query_map: HashMap<String, String> = query
+                .split('&')
+                .filter_map(|s| s.split_once('='))
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect();
+
+            for (param_name, re) in re_map {
+                match query_map.get(param_name) {
+                    Some(v) => {
+                        if !re.is_match(v) {
+                            return false;
+                        }
+                    }
+                    None => return false, // Required query param missing
+                }
+            }
+        }
+        true
     }
 
     pub fn extract_path_params(
@@ -247,6 +355,9 @@ mod tests {
             }],
             schema: None,
             schema_file: None,
+            path_regex: None,
+            headers_regex: None,
+            query_regex: None,
         }
     }
 
@@ -378,5 +489,61 @@ mod tests {
 
         // It should return the last value for the duplicate parameter name
         assert_eq!(params.get("id").unwrap(), "456");
+    }
+
+    #[test]
+    fn test_find_match_with_path_regex() {
+        let mut endpoint = create_test_endpoint("GET", "/users/:id");
+        endpoint.path_regex = Some(r"^/users/[0-9]+$".to_string());
+        let matcher = RuleMatcher::new(vec![endpoint]);
+
+        // Should match numeric ID
+        assert!(matcher
+            .find_match_with_context("GET", "/users/123", &HashMap::new(), "")
+            .is_ok());
+
+        // Should NOT match alphabetic ID
+        assert!(matcher
+            .find_match_with_context("GET", "/users/abc", &HashMap::new(), "")
+            .is_err());
+    }
+
+    #[test]
+    fn test_find_match_with_headers_regex() {
+        let mut endpoint = create_test_endpoint("GET", "/api");
+        let mut headers_regex = HashMap::new();
+        headers_regex.insert("X-Auth".to_string(), r"^token-[0-9]+$".to_string());
+        endpoint.headers_regex = Some(headers_regex);
+
+        let matcher = RuleMatcher::new(vec![endpoint]);
+
+        let mut valid_headers = HashMap::new();
+        valid_headers.insert("X-Auth".to_string(), "token-123".to_string());
+        assert!(matcher
+            .find_match_with_context("GET", "/api", &valid_headers, "")
+            .is_ok());
+
+        let mut invalid_headers = HashMap::new();
+        invalid_headers.insert("X-Auth".to_string(), "token-abc".to_string());
+        assert!(matcher
+            .find_match_with_context("GET", "/api", &invalid_headers, "")
+            .is_err());
+    }
+
+    #[test]
+    fn test_find_match_with_query_regex() {
+        let mut endpoint = create_test_endpoint("GET", "/api");
+        let mut query_regex = HashMap::new();
+        query_regex.insert("page".to_string(), r"^[0-9]+$".to_string());
+        endpoint.query_regex = Some(query_regex);
+
+        let matcher = RuleMatcher::new(vec![endpoint]);
+
+        assert!(matcher
+            .find_match_with_context("GET", "/api", &HashMap::new(), "page=1")
+            .is_ok());
+        assert!(matcher
+            .find_match_with_context("GET", "/api", &HashMap::new(), "page=abc")
+            .is_err());
     }
 }

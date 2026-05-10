@@ -5,7 +5,7 @@ This document outlines the planned features and enhancements for Molock, focusin
 ## Planned Features
 
 ### Advanced Request Matching & Validation
-- [ ] **Regex Matching**: Allow regular expressions in path definitions, headers, and query parameters for more flexible routing.
+- [x] **Regex Matching**: Allow regular expressions in path definitions, headers, and query parameters for more flexible routing.
 - [x] **JSON Schema Validation**: Support validating incoming request bodies against predefined JSON schemas before matching a rule.
 
 ### Proxying and Forwarding
