@@ -118,6 +118,8 @@ mod tests {
                 probability: None,
                 default: false,
             }],
+            schema: None,
+            schema_file: None,
         }];
 
         let rule_engine = Arc::new(RuleEngine::new(config.endpoints.clone()));

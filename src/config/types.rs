@@ -148,6 +148,10 @@ pub struct Endpoint {
     pub stateful: bool,
     #[serde(default)]
     pub state_key: Option<String>,
+    #[serde(default)]
+    pub schema: Option<serde_json::Value>,
+    #[serde(default)]
+    pub schema_file: Option<String>,
     pub responses: Vec<Response>,
 }
 
@@ -299,5 +303,38 @@ mod tests {
         assert_eq!(config.server.workers, 4);
         assert_eq!(config.telemetry.enabled, true);
         assert_eq!(config.telemetry.log_level, "info");
+    }
+
+    #[test]
+    fn test_endpoint_deserialization_with_schema() {
+        let json = r#"{
+            "name": "Test Schema",
+            "method": "POST",
+            "path": "/api/data",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "integer" }
+                }
+            },
+            "responses": []
+        }"#;
+        let endpoint: Endpoint = serde_json::from_str(json).unwrap();
+        assert!(endpoint.schema.is_some());
+        let schema = endpoint.schema.unwrap();
+        assert_eq!(schema["properties"]["id"]["type"], "integer");
+    }
+
+    #[test]
+    fn test_endpoint_deserialization_with_schema_file() {
+        let json = r#"{
+            "name": "Test Schema File",
+            "method": "POST",
+            "path": "/api/data",
+            "schema_file": "schemas/user.json",
+            "responses": []
+        }"#;
+        let endpoint: Endpoint = serde_json::from_str(json).unwrap();
+        assert_eq!(endpoint.schema_file, Some("schemas/user.json".to_string()));
     }
 }

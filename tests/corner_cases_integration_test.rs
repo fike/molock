@@ -30,6 +30,8 @@ async fn test_integration_path_normalization() {
             probability: None,
             default: false,
         }],
+        schema: None,
+        schema_file: None,
     }];
 
     let rule_engine = Arc::new(RuleEngine::new(config.endpoints.clone()));
@@ -75,6 +77,8 @@ async fn test_integration_precedence() {
                 probability: None,
                 default: false,
             }],
+            schema: None,
+            schema_file: None,
         },
         Endpoint {
             name: "Static".to_string(),
@@ -91,6 +95,8 @@ async fn test_integration_precedence() {
                 probability: None,
                 default: false,
             }],
+            schema: None,
+            schema_file: None,
         },
     ];
 
