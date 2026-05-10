@@ -101,7 +101,9 @@ impl RuleEngine {
         body: Option<&str>,
         client_ip: &str,
     ) -> anyhow::Result<RuleResponse> {
-        let endpoint = self.matcher.find_match(method, path)?;
+        let endpoint = self
+            .matcher
+            .find_match_with_context(method, path, headers, query)?;
 
         // Schema validation
         if let Some(validator) = self.compiled_schemas.get(&endpoint.name) {
@@ -200,6 +202,9 @@ mod tests {
             }],
             schema: None,
             schema_file: None,
+            path_regex: None,
+            headers_regex: None,
+            query_regex: None,
         }];
 
         let _engine = RuleEngine::new(endpoints);
@@ -230,6 +235,9 @@ mod tests {
                 }
             })),
             schema_file: None,
+            path_regex: None,
+            headers_regex: None,
+            query_regex: None,
             responses: vec![Response {
                 status: 200,
                 delay: None,
@@ -266,6 +274,9 @@ mod tests {
             state_key: None,
             schema: None,
             schema_file: Some(path),
+            path_regex: None,
+            headers_regex: None,
+            query_regex: None,
             responses: vec![Response {
                 status: 200,
                 delay: None,
@@ -294,6 +305,9 @@ mod tests {
                 "type": "invalid_type"
             })),
             schema_file: None,
+            path_regex: None,
+            headers_regex: None,
+            query_regex: None,
             responses: vec![Response {
                 status: 200,
                 delay: None,
@@ -324,6 +338,9 @@ mod tests {
                 "required": ["id"]
             })),
             schema_file: None,
+            path_regex: None,
+            headers_regex: None,
+            query_regex: None,
             responses: vec![Response {
                 status: 200,
                 delay: None,
@@ -368,6 +385,9 @@ mod tests {
                 "required": ["id"]
             })),
             schema_file: None,
+            path_regex: None,
+            headers_regex: None,
+            query_regex: None,
             responses: vec![Response {
                 status: 200,
                 delay: None,
@@ -406,6 +426,9 @@ mod tests {
             state_key: None,
             schema: Some(serde_json::json!({ "type": "object" })),
             schema_file: None,
+            path_regex: None,
+            headers_regex: None,
+            query_regex: None,
             responses: vec![Response {
                 status: 200,
                 delay: None,
@@ -432,5 +455,56 @@ mod tests {
 
         assert_eq!(result.status, 400);
         assert!(result.body.unwrap().contains("Invalid JSON payload"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_with_regex_matching() {
+        let endpoint = Endpoint {
+            name: "Regex Test".to_string(),
+            method: "GET".to_string(),
+            path: "/api".to_string(),
+            stateful: false,
+            state_key: None,
+            responses: vec![Response {
+                status: 200,
+                delay: None,
+                body: Some("OK".to_string()),
+                headers: HashMap::new(),
+                condition: None,
+                probability: None,
+                default: true,
+            }],
+            schema: None,
+            schema_file: None,
+            path_regex: None,
+            headers_regex: Some({
+                let mut h = HashMap::new();
+                h.insert("X-Required".to_string(), "^secret$".to_string());
+                h
+            }),
+            query_regex: Some({
+                let mut q = HashMap::new();
+                q.insert("v".to_string(), "^1$".to_string());
+                q
+            }),
+        };
+
+        let engine = RuleEngine::new(vec![endpoint]);
+
+        // Should match with correct headers and query
+        let mut headers = HashMap::new();
+        headers.insert("X-Required".to_string(), "secret".to_string());
+        let result = engine
+            .execute("GET", "/api", "v=1", &headers, None, "127.0.0.1")
+            .await;
+        assert!(result.is_ok());
+
+        // Should NOT match if header is wrong
+        let mut bad_headers = HashMap::new();
+        bad_headers.insert("X-Required".to_string(), "wrong".to_string());
+        let result = engine
+            .execute("GET", "/api", "v=1", &bad_headers, None, "127.0.0.1")
+            .await;
+        assert!(result.is_err());
     }
 }

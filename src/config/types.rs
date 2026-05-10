@@ -152,6 +152,12 @@ pub struct Endpoint {
     pub schema: Option<serde_json::Value>,
     #[serde(default)]
     pub schema_file: Option<String>,
+    #[serde(default)]
+    pub path_regex: Option<String>,
+    #[serde(default)]
+    pub headers_regex: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub query_regex: Option<HashMap<String, String>>,
     pub responses: Vec<Response>,
 }
 
@@ -336,5 +342,32 @@ mod tests {
         }"#;
         let endpoint: Endpoint = serde_json::from_str(json).unwrap();
         assert_eq!(endpoint.schema_file, Some("schemas/user.json".to_string()));
+    }
+
+    #[test]
+    fn test_endpoint_deserialization_with_regex() {
+        let json = r#"{
+            "name": "Test Regex",
+            "method": "GET",
+            "path": "/users/:id",
+            "path_regex": "^/users/[0-9]+$",
+            "headers_regex": {
+                "X-Auth-Token": "^[a-zA-Z0-9]+$"
+            },
+            "query_regex": {
+                "page": "^[0-9]+$"
+            },
+            "responses": []
+        }"#;
+        let endpoint: Endpoint = serde_json::from_str(json).unwrap();
+        assert_eq!(endpoint.path_regex, Some("^/users/[0-9]+$".to_string()));
+        assert_eq!(
+            endpoint.headers_regex.as_ref().unwrap().get("X-Auth-Token"),
+            Some(&"^[a-zA-Z0-9]+$".to_string())
+        );
+        assert_eq!(
+            endpoint.query_regex.as_ref().unwrap().get("page"),
+            Some(&"^[0-9]+$".to_string())
+        );
     }
 }

@@ -298,6 +298,9 @@ mod tests {
             }],
             schema: None,
             schema_file: None,
+            path_regex: None,
+            headers_regex: None,
+            query_regex: None,
         }
     }
 
