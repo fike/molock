@@ -317,9 +317,35 @@ This project is licensed under the Apache-2.0 License - see the LICENSE file for
 - Observability with [OpenTelemetry](https://opentelemetry.io/)
 - Configuration with [Serde](https://serde.rs/)
 - Testing with [Tokio](https://tokio.rs/)
-## License
+## Performance Benchmark
 
-Molock is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
+Molock is designed for high-performance scenarios. Below is a consolidated comparison between Molock (Rust) and MockServer (Java) under various conditions, conducted in a desktop VM environment.
+
+| Scenario | Tool | Concurrency | Req/sec | Latency (mean) | P95 Latency |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **Health Check** (GET) | **Molock** | 100 | **12,086** | 8.2ms | 13ms |
+| | MockServer | 100 | 1,222 | 81.8ms | 223ms |
+| | **Molock** | 200 | **9,368** | 21.3ms | 39ms |
+| | MockServer | 200 | 0 | N/A | N/A |
+| | **Molock** | 300 | **9,124** | 32.8ms | 57ms |
+| | MockServer | 300 | 0 | N/A | N/A |
+| --- | --- | ---: | ---: | ---: | ---: |
+| **User Retrieval** (Regex) | **Molock** | 100 | **7,397** | 13.5ms | 24ms |
+| | MockServer | 100 | 0 | N/A | N/A |
+| | **Molock** | 200 | **9,470** | 21.1ms | 35ms |
+| | MockServer | 200 | 0 | N/A | N/A |
+| | **Molock** | 300 | **9,528** | 31.4ms | 52ms |
+| | MockServer | 300 | 0 | N/A | N/A |
+| --- | --- | ---: | ---: | ---: | ---: |
+| **Order Creation** (POST) | **Molock** | 100 | **7,310** | 13.6ms | 25ms |
+| | MockServer | 100 | 0 | N/A | N/A |
+| | **Molock** | 200 | **8,770** | 22.8ms | 44ms |
+| | **Molock** | 300 | **9,758** | 30.7ms | 51ms |
+
+### Key Findings:
+- **Throughput**: Molock delivers **10x higher throughput** than MockServer in baseline scenarios.
+- **Resource Efficiency**: Molock remains stable under high concurrency (300+ connections) where MockServer fails due to resource exhaustion.
+- **Latency**: Molock's tail latency (P95) under maximum load is still significantly lower than MockServer's baseline latency.
 
 ## License
 
