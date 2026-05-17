@@ -1,17 +1,5 @@
 # Molock - High-Performance Mock Server
 
-> ⚠️ **DISCLAIMER: Experimental Project**
->
-> This project is an **experimental codebase** created using AI-assisted development.
->
-> **Before using in production:**
-> - Code has not been manually reviewed by humans
-> - Security audits have not been completed
-> - API/behavior may change without notice
-> - Test coverage meets project standards but may have edge cases
->
-> **Use at your own risk.**
-
 Molock is a production-ready mock server for CI/CD pipelines, stress testing, and other testing scenarios. Built in Rust with Actix-web, it provides high-performance, configurable, and observable mock endpoints with OpenTelemetry integration.
 
 ## Features
@@ -187,8 +175,7 @@ molock/
 │   └── utils/      # Helper functions
 ├── tests/          # Integration tests
 ├── config/         # Configuration files
-├── deployment/     # Docker and deployment artifacts
-└── .ai/           # AI-assisted development documentation
+└── deployment/     # Docker and deployment artifacts
 ```
 
 ### Building and Testing
@@ -271,35 +258,6 @@ See the `deployment/` directory for example Kubernetes manifests.
 ## Contributing
 
 Please read `.ai/CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests.
-
-### For AI-Assisted Development
-
-This project supports AI-assisted development workflows:
-
-| Configuration File | Description |
-|-------------------|-------------|
-| `AGENTS.md` (root) | Project-specific instructions and conventions |
-| `.ai/Agents.md` | Extended guidelines, TDD workflow, and skills |
-| `.ai/.cursorrules` | IDE-specific rules |
-
-#### Quick Commands
-
-```bash
-# Build and test
-make build
-make test
-
-# Code quality
-make lint
-make fmt
-make test-coverage
-
-# Development
-make run
-make dev
-```
-
-See `.ai/Agents.md` for detailed guidelines, or `AGENTS.md` for a standardized format compatible with AI coding agents.
 
 ## License
 
