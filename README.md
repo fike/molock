@@ -283,7 +283,7 @@ make dev
 
 ### Adding New Features (TDD Required)
 
-1. **Write failing tests first** following TDD guidelines in `.ai/TDD_GUIDE.md`
+1. **Write failing tests first** following TDD guidelines in `.agents/core-engineering/references/tdd-guide.md`
 2. **Implement minimal solution** to make tests pass
 3. **Refactor** while keeping tests green
 4. **Ensure 80%+ test coverage** using `make test-coverage`
