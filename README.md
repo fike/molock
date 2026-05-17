@@ -259,6 +259,40 @@ See the `deployment/` directory for example Kubernetes manifests.
 
 Please read `.ai/CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests.
 
+## Development
+
+### Building and Testing
+
+```bash
+# Build release binary
+make build
+
+# Run all tests
+make test
+
+# Run tests with coverage
+make test-coverage
+
+# Check code quality
+make lint
+make fmt
+
+# Development mode
+make dev
+```
+
+### Adding New Features (TDD Required)
+
+1. **Write failing tests first** following TDD guidelines in `.ai/TDD_GUIDE.md`
+2. **Implement minimal solution** to make tests pass
+3. **Refactor** while keeping tests green
+4. **Ensure 80%+ test coverage** using `make test-coverage`
+5. Follow coding conventions in `AGENTS.md`
+6. Update documentation as needed
+7. Run `make test` and `make lint` before committing
+
+**IMPORTANT**: All contributions MUST follow Test-Driven Development (TDD) principles. PRs without adequate test coverage (<80%) will be rejected.
+
 ## License
 
 This project is licensed under the Apache-2.0 License - see the LICENSE file for details.
