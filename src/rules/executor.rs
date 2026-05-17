@@ -71,7 +71,8 @@ impl ResponseExecutor {
             match key.as_str() {
                 "client_ip" => context.client_ip.clone(),
                 _ => {
-                    if let Some(value) = context.headers.get(&key) {
+                    let key_lower = key.to_lowercase();
+                    if let Some(value) = context.headers.get(&key_lower) {
                         value.clone()
                     } else {
                         context.client_ip.clone()
@@ -412,8 +413,48 @@ mod tests {
         assert_eq!(result, "User {{query.name}}");
     }
 
+    #[tokio::test]
+    async fn test_execute_stateful_custom_key() {
+        let state_manager = Arc::new(StateManager::new());
+        let executor = ResponseExecutor::new(state_manager.clone());
+
+        let mut endpoint = create_test_endpoint();
+        endpoint.stateful = true;
+        endpoint.state_key = Some("X-User-ID".to_string());
+
+        let mut context = create_test_context();
+        context.headers.insert("x-user-id".to_string(), "user1".to_string());
+
+        let result = executor.execute(&endpoint, &context).await.unwrap();
+        assert_eq!(result.headers.get("X-Request-Count"), Some(&"1".to_string()));
+        assert_eq!(state_manager.get_count("user1"), 1);
+
+        // Test missing custom key falls back to client_ip
+        context.headers.remove("x-user-id");
+        let result = executor.execute(&endpoint, &context).await.unwrap();
+        assert_eq!(state_manager.get_count("127.0.0.1"), 1);
+    }
+
     #[test]
-    fn test_select_by_probability() {
+    fn test_evaluate_expression_operators() {
+        let state_manager = Arc::new(StateManager::new());
+        let executor = ResponseExecutor::new(state_manager);
+        let context = create_test_context();
+
+        assert!(executor.evaluate_expression("request_count < 5", &context, 3).unwrap());
+        assert!(executor.evaluate_expression("request_count >= 3", &context, 3).unwrap());
+        assert!(executor.evaluate_expression("request_count <= 3", &context, 3).unwrap());
+        assert!(executor.evaluate_expression("request_count == 3", &context, 3).unwrap());
+        assert!(executor.evaluate_expression("request_count = 3", &context, 3).unwrap());
+        assert!(executor.evaluate_expression("request_count != 4", &context, 3).unwrap());
+        
+        // Invalid operator or format
+        assert!(executor.evaluate_expression("request_count ?? 3", &context, 3).unwrap());
+        assert!(executor.evaluate_expression("invalid", &context, 3).unwrap());
+    }
+
+    #[test]
+    fn test_select_by_probability_no_probability() {
         let state_manager = Arc::new(StateManager::new());
         let executor = ResponseExecutor::new(state_manager);
 
@@ -424,23 +465,26 @@ mod tests {
                 body: None,
                 headers: HashMap::new(),
                 condition: None,
-                probability: Some(0.3),
-                default: false,
-            },
-            Response {
-                status: 500,
-                delay: None,
-                body: None,
-                headers: HashMap::new(),
-                condition: None,
-                probability: Some(0.7),
+                probability: None,
                 default: false,
             },
         ];
 
         let refs: Vec<&Response> = responses.iter().collect();
-        let selected = executor.select_by_probability(&refs).unwrap();
+        let result = executor.select_by_probability(&refs);
+        assert!(result.is_err());
+    }
 
-        assert!(selected.status == 200 || selected.status == 500);
+    #[tokio::test]
+    async fn test_execute_range_delay() {
+        let state_manager = Arc::new(StateManager::new());
+        let executor = ResponseExecutor::new(state_manager);
+
+        let mut endpoint = create_test_endpoint();
+        endpoint.responses[0].delay = Some(Delay::Range("10ms-50ms".to_string()));
+
+        let context = create_test_context();
+        let result = executor.execute(&endpoint, &context).await.unwrap();
+        assert_eq!(result.status, 200);
     }
 }

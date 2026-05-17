@@ -58,9 +58,14 @@ pub async fn shutdown_signal() {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn test_shutdown_signal() {
-        // Just test that the function can be called
-        // In practice this would need async test runtime
+    use super::*;
+    use tokio::time::{timeout, Duration};
+
+    #[tokio::test]
+    async fn test_shutdown_signal_timeout() {
+        // Since we can't easily send signals to the process in a unit test,
+        // we just verify that the function doesn't return immediately.
+        let result = timeout(Duration::from_millis(100), shutdown_signal()).await;
+        assert!(result.is_err()); // Timeout should happen
     }
 }
