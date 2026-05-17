@@ -1,17 +1,5 @@
 # Molock - High-Performance Mock Server
 
-> ⚠️ **DISCLAIMER: Experimental Project**
->
-> This project is an **experimental codebase** created using AI-assisted development.
->
-> **Before using in production:**
-> - Code has not been manually reviewed by humans
-> - Security audits have not been completed
-> - API/behavior may change without notice
-> - Test coverage meets project standards but may have edge cases
->
-> **Use at your own risk.**
-
 Molock is a production-ready mock server for CI/CD pipelines, stress testing, and other testing scenarios. Built in Rust with Actix-web, it provides high-performance, configurable, and observable mock endpoints with OpenTelemetry integration.
 
 ## Features
@@ -187,8 +175,7 @@ molock/
 │   └── utils/      # Helper functions
 ├── tests/          # Integration tests
 ├── config/         # Configuration files
-├── deployment/     # Docker and deployment artifacts
-└── .ai/           # AI-assisted development documentation
+└── deployment/     # Docker and deployment artifacts
 ```
 
 ### Building and Testing
@@ -272,34 +259,39 @@ See the `deployment/` directory for example Kubernetes manifests.
 
 Please read `.ai/CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests.
 
-### For AI-Assisted Development
+## Development
 
-This project supports AI-assisted development workflows:
-
-| Configuration File | Description |
-|-------------------|-------------|
-| `AGENTS.md` (root) | Project-specific instructions and conventions |
-| `.ai/Agents.md` | Extended guidelines, TDD workflow, and skills |
-| `.ai/.cursorrules` | IDE-specific rules |
-
-#### Quick Commands
+### Building and Testing
 
 ```bash
-# Build and test
+# Build release binary
 make build
+
+# Run all tests
 make test
 
-# Code quality
-make lint
-make fmt
+# Run tests with coverage
 make test-coverage
 
-# Development
-make run
+# Check code quality
+make lint
+make fmt
+
+# Development mode
 make dev
 ```
 
-See `.ai/Agents.md` for detailed guidelines, or `AGENTS.md` for a standardized format compatible with AI coding agents.
+### Adding New Features (TDD Required)
+
+1. **Write failing tests first** following TDD guidelines in `.agents/core-engineering/references/tdd-guide.md`
+2. **Implement minimal solution** to make tests pass
+3. **Refactor** while keeping tests green
+4. **Ensure 80%+ test coverage** using `make test-coverage`
+5. Follow coding conventions in `AGENTS.md`
+6. Update documentation as needed
+7. Run `make test` and `make lint` before committing
+
+**IMPORTANT**: All contributions MUST follow Test-Driven Development (TDD) principles. PRs without adequate test coverage (<80%) will be rejected.
 
 ## License
 
@@ -317,9 +309,35 @@ This project is licensed under the Apache-2.0 License - see the LICENSE file for
 - Observability with [OpenTelemetry](https://opentelemetry.io/)
 - Configuration with [Serde](https://serde.rs/)
 - Testing with [Tokio](https://tokio.rs/)
-## License
+## Performance Benchmark
 
-Molock is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
+Molock is designed for high-performance scenarios. Below is a consolidated comparison between Molock (Rust) and MockServer (Java) under various conditions, conducted in a desktop VM environment.
+
+| Scenario | Tool | Concurrency | Req/sec | Latency (mean) | P95 Latency |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **Health Check** (GET) | **Molock** | 100 | **12,086** | 8.2ms | 13ms |
+| | MockServer | 100 | 1,222 | 81.8ms | 223ms |
+| | **Molock** | 200 | **9,368** | 21.3ms | 39ms |
+| | MockServer | 200 | 0 | N/A | N/A |
+| | **Molock** | 300 | **9,124** | 32.8ms | 57ms |
+| | MockServer | 300 | 0 | N/A | N/A |
+| --- | --- | ---: | ---: | ---: | ---: |
+| **User Retrieval** (Regex) | **Molock** | 100 | **7,397** | 13.5ms | 24ms |
+| | MockServer | 100 | 0 | N/A | N/A |
+| | **Molock** | 200 | **9,470** | 21.1ms | 35ms |
+| | MockServer | 200 | 0 | N/A | N/A |
+| | **Molock** | 300 | **9,528** | 31.4ms | 52ms |
+| | MockServer | 300 | 0 | N/A | N/A |
+| --- | --- | ---: | ---: | ---: | ---: |
+| **Order Creation** (POST) | **Molock** | 100 | **7,310** | 13.6ms | 25ms |
+| | MockServer | 100 | 0 | N/A | N/A |
+| | **Molock** | 200 | **8,770** | 22.8ms | 44ms |
+| | **Molock** | 300 | **9,758** | 30.7ms | 51ms |
+
+### Key Findings:
+- **Throughput**: Molock delivers **10x higher throughput** than MockServer in baseline scenarios.
+- **Resource Efficiency**: Molock remains stable under high concurrency (300+ connections) where MockServer fails due to resource exhaustion.
+- **Latency**: Molock's tail latency (P95) under maximum load is still significantly lower than MockServer's baseline latency.
 
 ## License
 

@@ -1,0 +1,35 @@
+server:
+  port: 8080
+  workers: 4
+  host: "0.0.0.0"
+
+telemetry:
+  enabled: false
+
+endpoints:
+  - name: "Health Check"
+    method: GET
+    path: "/health"
+    responses:
+      - status: 200
+        body: '{"status": "healthy"}'
+        headers:
+          Content-Type: application/json
+
+  - name: "Get User"
+    method: GET
+    path: "/users/:id"
+    responses:
+      - status: 200
+        body: '{"id": "123", "name": "John Doe", "email": "john@example.com"}'
+        headers:
+          Content-Type: application/json
+
+  - name: "Create Order"
+    method: POST
+    path: "/orders"
+    responses:
+      - status: 201
+        body: '{"orderId": "abc-123", "status": "created"}'
+        headers:
+          Content-Type: application/json

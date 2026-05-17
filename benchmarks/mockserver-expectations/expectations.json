@@ -1,0 +1,41 @@
+[
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/health"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": [ "application/json" ]
+      },
+      "body": "{\"status\": \"healthy\"}"
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/users/[0-9]+"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": [ "application/json" ]
+      },
+      "body": "{\"id\": \"123\", \"name\": \"John Doe\", \"email\": \"john@example.com\"}"
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "POST",
+      "path": "/orders"
+    },
+    "httpResponse": {
+      "statusCode": 201,
+      "headers": {
+        "Content-Type": [ "application/json" ]
+      },
+      "body": "{\"orderId\": \"abc-123\", \"status\": \"created\"}"
+    }
+  }
+]

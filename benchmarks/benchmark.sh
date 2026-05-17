@@ -14,6 +14,7 @@ BENCHMARK_TIMEOUT=30
 SERVER_STARTUP_WAIT=3
 SERVER_SHUTDOWN_WAIT=2
 DOCKER_MODE=false
+RESULTS_TEMP_FILE=$(mktemp /tmp/molock_results.XXXXXX)
 
 # Colors for output
 RED='\033[0;31m'
@@ -114,10 +115,29 @@ run_benchmark() {
         ab_cmd="$ab_cmd -p $data_file -T application/json"
     fi
     
-    # Run the benchmark
-    if ! $ab_cmd "$url" 2>&1; then
+    # Run the benchmark and capture output
+    local output
+    if ! output=$($ab_cmd "$url" 2>&1); then
         log_warning "Benchmark $test_name had issues (non-zero exit code)"
+        echo "$output"
+    else
+        echo "$output"
     fi
+
+    # Extract metrics for the report
+    local rps=$(echo "$output" | grep "Requests per second:" | awk '{print $4}')
+    local tpr=$(echo "$output" | grep "Time per request:" | head -1 | awk '{print $4}')
+    local p95=$(echo "$output" | grep " 95%" | awk '{print $2}')
+    local failed=$(echo "$output" | grep "Failed requests:" | awk '{print $3}')
+    
+    # Use default values if metrics are missing
+    rps=${rps:-"N/A"}
+    tpr=${tpr:-"N/A"}
+    p95=${p95:-"N/A"}
+    failed=${failed:-"0"}
+
+    # Append to results temp file
+    echo "| $test_name | $rps | ${tpr}ms | ${p95}ms | $failed |" >> "$RESULTS_TEMP_FILE"
     
     echo -e "\n"
 }
@@ -193,6 +213,11 @@ Generated: $(date)
 - Concurrency Level: $BENCHMARK_CONCURRENCY
 - Test Timeout: ${BENCHMARK_TIMEOUT}s
 
+## Results Summary
+| Scenario | Requests/sec | Latency (mean) | 95% Latency | Failed |
+| :--- | :--- | :--- | :--- | :--- |
+$(cat "$RESULTS_TEMP_FILE")
+
 ## Server Configuration
 \`\`\`yaml
 $(head -20 config/molock-config.yaml)
@@ -217,6 +242,9 @@ EOF
 
 # Cleanup function
 cleanup() {
+    # Remove temporary results file
+    rm -f "$RESULTS_TEMP_FILE"
+
     if [ "$DOCKER_MODE" = true ]; then
         log_info "Docker mode: No cleanup needed (services remain running)"
         return 0

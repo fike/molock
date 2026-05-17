@@ -149,3 +149,5 @@ test-full:
 pre-push: fmt lint test-full
 	@echo ""
 	@echo "✅ All checks passed! Ready to push."
+benchmark-compare:
+	@./benchmarks/compare_benchmark.sh
