@@ -1,0 +1,41 @@
+[
+    {
+        "request": {
+            "method": "GET",
+            "path": "/health"
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": "{\"status\": \"healthy\"}"
+        }
+    },
+    {
+        "request": {
+            "method": "GET",
+            "path": "/users/([0-9]+)"
+        },
+        "response": {
+            "status": 200,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": "{\"id\": \"123\", \"name\": \"John Doe\", \"email\": \"john@example.com\"}"
+        }
+    },
+    {
+        "request": {
+            "method": "POST",
+            "path": "/orders"
+        },
+        "response": {
+            "status": 201,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": "{\"orderId\": \"abc-123\", \"status\": \"created\"}"
+        }
+    }
+]

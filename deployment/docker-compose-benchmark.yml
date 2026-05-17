@@ -1,0 +1,22 @@
+services:
+  molock:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../config/benchmark-stress-config.yaml:/etc/molock/config/molock-config.yaml
+    environment:
+      - MOLOCK_CONFIG_PATH=/etc/molock/config/molock-config.yaml
+      - RUST_LOG=info
+
+  mockserver:
+    image: mockserver/mockserver:latest
+    ports:
+      - "8081:1080"
+    environment:
+      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/expectations.json
+      MOCKSERVER_LOG_LEVEL: WARN
+    volumes:
+      - ../benchmarks/mockserver-expectations:/config
