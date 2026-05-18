@@ -197,7 +197,7 @@ mod tests {
         let rule_engine_swap = Arc::new(ArcSwap::from(rule_engine));
 
         let _ = start_hot_reload(&config_path, rule_engine_swap.clone()).await;
-        
+
         // Give watcher some time to start
         tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 

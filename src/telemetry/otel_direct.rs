@@ -124,13 +124,7 @@ mod tests {
         drop(provider);
 
         let cx = Context::current();
-        let span = create_http_server_span(
-            "test-span",
-            "GET",
-            "/test",
-            "/test",
-            &cx,
-        );
+        let span = create_http_server_span("test-span", "GET", "/test", "/test", &cx);
         assert!(span.is_none());
 
         let mut provider = TRACER_PROVIDER.write().unwrap();
@@ -191,13 +185,7 @@ mod tests {
         init_direct_tracer(Arc::new(tracer_provider));
 
         let cx = Context::current();
-        let span = create_http_server_span(
-            "http.request",
-            "GET",
-            "/api/users",
-            "/api/users",
-            &cx,
-        );
+        let span = create_http_server_span("http.request", "GET", "/api/users", "/api/users", &cx);
 
         assert!(span.is_some());
 
@@ -228,13 +216,7 @@ mod tests {
         // would carry it twice when exported. The test ensures the function compiles
         // and executes without panicking — the absence of the attribute is enforced
         // by code inspection of the `with_attributes` list above.
-        let span = create_http_server_span(
-            "http.request",
-            "GET",
-            "/test",
-            "/test",
-            &cx,
-        );
+        let span = create_http_server_span("http.request", "GET", "/test", "/test", &cx);
         assert!(span.is_some());
         end_span(span.unwrap());
 
@@ -368,13 +350,8 @@ mod tests {
         let cx = Context::current();
 
         for method in methods {
-            let span = create_http_server_span(
-                "http.request",
-                method,
-                "/api/test",
-                "/api/test",
-                &cx,
-            );
+            let span =
+                create_http_server_span("http.request", method, "/api/test", "/api/test", &cx);
 
             assert!(span.is_some());
             end_span(span.unwrap());
@@ -407,13 +384,7 @@ mod tests {
         let cx = Context::current();
 
         for path in paths {
-            let span = create_http_server_span(
-                "http.request",
-                "GET",
-                path,
-                path,
-                &cx,
-            );
+            let span = create_http_server_span("http.request", "GET", path, path, &cx);
 
             assert!(span.is_some());
             end_span(span.unwrap());
@@ -437,14 +408,8 @@ mod tests {
         init_direct_tracer(Arc::new(tracer_provider));
 
         let cx = Context::current();
-        let span = create_http_server_span(
-            "http.request",
-            "POST",
-            "/api/users",
-            "/api/users",
-            &cx,
-        )
-        .unwrap();
+        let span = create_http_server_span("http.request", "POST", "/api/users", "/api/users", &cx)
+            .unwrap();
 
         end_span(span);
 

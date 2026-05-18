@@ -192,9 +192,11 @@ impl RuleMatcher {
     fn matches_headers(&self, endpoint_name: &str, headers: &HashMap<String, String>) -> bool {
         if let Some(re_map) = self.headers_regexes.get(endpoint_name) {
             for (header_name, re) in re_map {
-                // Incoming header keys might not be lowercase in the HashMap, 
+                // Incoming header keys might not be lowercase in the HashMap,
                 // but we pre-lowercased our rule keys.
-                let found = headers.iter().find(|(k, _)| k.to_lowercase() == *header_name);
+                let found = headers
+                    .iter()
+                    .find(|(k, _)| k.to_lowercase() == *header_name);
 
                 match found {
                     Some((_, v)) => {
@@ -213,7 +215,10 @@ impl RuleMatcher {
         if let Some(re_map) = self.query_regexes.get(endpoint_name) {
             for (param_name, re) in re_map {
                 // Lazy scan query string for the parameter
-                let found = query.split('&').filter_map(|s| s.split_once('=')).find(|(k, _)| k == param_name);
+                let found = query
+                    .split('&')
+                    .filter_map(|s| s.split_once('='))
+                    .find(|(k, _)| k == param_name);
 
                 match found {
                     Some((_, v)) => {

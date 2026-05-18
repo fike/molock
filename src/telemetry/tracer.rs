@@ -537,11 +537,10 @@ mod tests {
     #[actix_web::test]
     async fn test_tracing_middleware_without_otel() {
         // Ensure telemetry is not initialized or use a way to mock it
-        let app = test::init_service(
-            App::new()
-                .wrap(tracing_middleware())
-                .route("/test", web::get().to(|| async { HttpResponse::Ok().finish() })),
-        )
+        let app = test::init_service(App::new().wrap(tracing_middleware()).route(
+            "/test",
+            web::get().to(|| async { HttpResponse::Ok().finish() }),
+        ))
         .await;
 
         let req = test::TestRequest::get().uri("/test").to_request();
@@ -554,7 +553,7 @@ mod tests {
         let mut config = TelemetryConfig::default();
         config.protocol = "http".to_string();
         config.endpoint = "http://localhost:4318".to_string();
-        
+
         // This might fail to build exporter if OTel SDK is not properly set up in test env,
         // but it should at least exercise the path.
         let _ = init_tracing(&config).await;

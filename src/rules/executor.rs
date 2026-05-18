@@ -423,10 +423,15 @@ mod tests {
         endpoint.state_key = Some("X-User-ID".to_string());
 
         let mut context = create_test_context();
-        context.headers.insert("x-user-id".to_string(), "user1".to_string());
+        context
+            .headers
+            .insert("x-user-id".to_string(), "user1".to_string());
 
         let result = executor.execute(&endpoint, &context).await.unwrap();
-        assert_eq!(result.headers.get("X-Request-Count"), Some(&"1".to_string()));
+        assert_eq!(
+            result.headers.get("X-Request-Count"),
+            Some(&"1".to_string())
+        );
         assert_eq!(state_manager.get_count("user1"), 1);
 
         // Test missing custom key falls back to client_ip
@@ -441,16 +446,32 @@ mod tests {
         let executor = ResponseExecutor::new(state_manager);
         let context = create_test_context();
 
-        assert!(executor.evaluate_expression("request_count < 5", &context, 3).unwrap());
-        assert!(executor.evaluate_expression("request_count >= 3", &context, 3).unwrap());
-        assert!(executor.evaluate_expression("request_count <= 3", &context, 3).unwrap());
-        assert!(executor.evaluate_expression("request_count == 3", &context, 3).unwrap());
-        assert!(executor.evaluate_expression("request_count = 3", &context, 3).unwrap());
-        assert!(executor.evaluate_expression("request_count != 4", &context, 3).unwrap());
-        
+        assert!(executor
+            .evaluate_expression("request_count < 5", &context, 3)
+            .unwrap());
+        assert!(executor
+            .evaluate_expression("request_count >= 3", &context, 3)
+            .unwrap());
+        assert!(executor
+            .evaluate_expression("request_count <= 3", &context, 3)
+            .unwrap());
+        assert!(executor
+            .evaluate_expression("request_count == 3", &context, 3)
+            .unwrap());
+        assert!(executor
+            .evaluate_expression("request_count = 3", &context, 3)
+            .unwrap());
+        assert!(executor
+            .evaluate_expression("request_count != 4", &context, 3)
+            .unwrap());
+
         // Invalid operator or format
-        assert!(executor.evaluate_expression("request_count ?? 3", &context, 3).unwrap());
-        assert!(executor.evaluate_expression("invalid", &context, 3).unwrap());
+        assert!(executor
+            .evaluate_expression("request_count ?? 3", &context, 3)
+            .unwrap());
+        assert!(executor
+            .evaluate_expression("invalid", &context, 3)
+            .unwrap());
     }
 
     #[test]
@@ -458,17 +479,15 @@ mod tests {
         let state_manager = Arc::new(StateManager::new());
         let executor = ResponseExecutor::new(state_manager);
 
-        let responses = vec![
-            Response {
-                status: 200,
-                delay: None,
-                body: None,
-                headers: HashMap::new(),
-                condition: None,
-                probability: None,
-                default: false,
-            },
-        ];
+        let responses = vec![Response {
+            status: 200,
+            delay: None,
+            body: None,
+            headers: HashMap::new(),
+            condition: None,
+            probability: None,
+            default: false,
+        }];
 
         let refs: Vec<&Response> = responses.iter().collect();
         let result = executor.select_by_probability(&refs);

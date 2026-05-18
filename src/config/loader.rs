@@ -447,7 +447,10 @@ endpoints: []
         "#;
         let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("workers cannot be 0"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("workers cannot be 0"));
     }
 
     #[test]
@@ -462,7 +465,10 @@ endpoints: []
         "#;
         let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("endpoint cannot be empty"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("endpoint cannot be empty"));
     }
 
     #[test]
@@ -477,7 +483,10 @@ endpoints: []
         "#;
         let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("must use http:// or https:// scheme"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("must use http:// or https:// scheme"));
     }
 
     #[test]
@@ -507,7 +516,10 @@ endpoints: []
         "#;
         let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("timeout must be greater than 0"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("timeout must be greater than 0"));
     }
 
     #[test]
@@ -522,7 +534,10 @@ endpoints: []
         "#;
         let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("export batch size must be greater than 0"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("export batch size must be greater than 0"));
     }
 
     #[test]
@@ -537,14 +552,17 @@ endpoints: []
         "#;
         let result = ConfigLoader::parse_str(config_str);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("export timeout must be greater than 0"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("export timeout must be greater than 0"));
     }
 
     #[test]
     fn test_direct_telemetry_validation() {
         let mut config = crate::config::types::TelemetryConfig::default();
         config.enabled = true;
-        
+
         config.timeout_seconds = 0;
         assert!(ConfigLoader::validate_telemetry_config(&config).is_err());
         config.timeout_seconds = 30;

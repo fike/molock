@@ -266,7 +266,7 @@ mod tests {
         let resp = resp.respond_to(&test::TestRequest::default().to_http_request());
         // It returns 500 because the test request doesn't have connection info
         // which triggers an error in process_request, covering the error path.
-        assert_eq!(resp.status(), 500); 
+        assert_eq!(resp.status(), 500);
     }
 
     #[actix_web::test]
@@ -282,10 +282,10 @@ mod tests {
         // Use a request that might cause issues or just trust the current coverage
         let req = test::TestRequest::get().uri("/error").to_http_request();
         let body = web::Bytes::new();
-        
+
         let resp = request_handler(req, body, app_state).await;
         let resp = resp.respond_to(&test::TestRequest::default().to_http_request());
-        // Currently rule_engine returns 404 if no match, not Err. 
+        // Currently rule_engine returns 404 if no match, not Err.
         // We'd need a rule that fails during execution.
     }
 }
