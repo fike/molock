@@ -109,7 +109,7 @@ When requesting a feature, please include:
 
 ### Coverage Standards (Enforced)
 - **MINIMUM**: 80% line coverage for all modified code
-- **MINIMUM**: 80% branch coverage for critical paths  
+- **MINIMUM**: 80% branch coverage for critical paths
 - **REQUIRED**: All public APIs must have comprehensive tests
 - **REQUIRED**: Integration tests for all major features
 - **PENALTY**: PRs with <80% coverage will be automatically rejected
@@ -161,7 +161,7 @@ cargo test test_name
 # Run unit tests only
 cargo test --lib
 
-# Run integration tests only  
+# Run integration tests only
 cargo test --tests
 ```
 

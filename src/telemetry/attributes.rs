@@ -77,7 +77,7 @@ pub mod service {
     pub const INSTANCE_ID: &str = "service.instance.id";
 }
 
-/// Deployment semantic conventions  
+/// Deployment semantic conventions
 pub mod deployment {
     #[allow(dead_code)]
     pub const ENVIRONMENT: &str = "deployment.environment";

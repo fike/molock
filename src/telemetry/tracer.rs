@@ -341,7 +341,7 @@ where
         http.target = %path,
         http.route = %path,
     );
-    tracing_span.set_parent(cx);
+    let _ = tracing_span.set_parent(cx);
 
     let response = service.call(req).instrument(tracing_span.clone()).await?;
 

@@ -27,26 +27,26 @@ echo "=========================================================="
 # Process each Rust source file
 find src -name "*.rs" -type f | while read -r file; do
     echo "Processing: $file"
-    
+
     # Check if file already has a license header
     if head -n 1 "$file" | grep -q "Copyright\|Licensed under"; then
         echo "  ✓ Already has license header"
         continue
     fi
-    
+
     # Create temporary file with license header
     TEMP_FILE=$(mktemp)
-    
+
     # Add license header
     echo "$LICENSE_HEADER" > "$TEMP_FILE"
     echo "" >> "$TEMP_FILE"
-    
+
     # Add original content
     cat "$file" >> "$TEMP_FILE"
-    
+
     # Replace original file
     mv "$TEMP_FILE" "$file"
-    
+
     echo "  ✓ Added license header"
 done
 

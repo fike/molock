@@ -1,6 +1,6 @@
 # Clippy configuration for Molock Quality Gates
 
-# Cognitive complexity threshold. 
+# Cognitive complexity threshold.
 # Functions exceeding this will trigger a warning.
 # Recommended default is 25. High-rigor projects use 15-20.
 cognitive-complexity-threshold = 25
