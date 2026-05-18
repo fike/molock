@@ -23,8 +23,10 @@ help:
 	@echo "  benchmark-delay - Benchmark delayed responses"
 	@echo "  benchmark-post - Benchmark POST endpoints"
 	@echo "  benchmark-docker - Run benchmarks against Docker Compose stack"
+	@echo "  benchmark-compare - Compare Molock performance against MockServer"
 	@echo "  observability-up - Start observability stack only"
-	@echo "  observability-down - Stop observability stack"
+	@echo "  observability-down  - Stop observability stack"
+	@echo "  lint-pedantic - Run deep code quality analysis (Clippy pedantic)"
 
 build:
 	cargo build --release
@@ -57,6 +59,9 @@ clean:
 
 lint:
 	cargo clippy --features otel -- -D warnings
+
+lint-pedantic:
+	@./.agents/code-quality/scripts/find_code_smells.sh
 
 fmt:
 	cargo fmt --all

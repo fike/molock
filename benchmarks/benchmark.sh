@@ -67,18 +67,18 @@ build_project() {
 # Start Molock server in background
 start_server() {
     log_info "Starting Molock server on port $SERVER_PORT..."
-    
+
     # Kill any existing server on this port
     lsof -ti:$SERVER_PORT | xargs kill -9 2>/dev/null || true
-    
+
     # Start server in background with benchmark config
     cargo run --release -- --config config/benchmark-config.yaml > server.log 2>&1 &
     SERVER_PID=$!
-    
+
     # Verify server is running
     local max_retries=5
     local retry_count=0
-    
+
     while [ $retry_count -lt $max_retries ]; do
         if curl -s -f http://localhost:$SERVER_PORT/health > /dev/null 2>&1; then
             log_success "Server started successfully (PID: $SERVER_PID)"
@@ -87,7 +87,7 @@ start_server() {
         retry_count=$((retry_count + 1))
         sleep 1
     done
-    
+
     log_error "Failed to start server. Check server.log for details."
     kill $SERVER_PID 2>/dev/null || true
     exit 1
@@ -99,7 +99,7 @@ run_benchmark() {
     local url="$2"
     local method="${3:-GET}"
     local data_file="${4:-}"
-    
+
     log_info "Running benchmark: $test_name"
     echo "================================================"
     echo "Test: $test_name"
@@ -108,13 +108,13 @@ run_benchmark() {
     echo "Requests: $BENCHMARK_REQUESTS"
     echo "Concurrency: $BENCHMARK_CONCURRENCY"
     echo "================================================"
-    
+
     local ab_cmd="ab -n $BENCHMARK_REQUESTS -c $BENCHMARK_CONCURRENCY -t $BENCHMARK_TIMEOUT"
-    
+
     if [ "$method" = "POST" ] && [ -n "$data_file" ]; then
         ab_cmd="$ab_cmd -p $data_file -T application/json"
     fi
-    
+
     # Run the benchmark and capture output
     local output
     if ! output=$($ab_cmd "$url" 2>&1); then
@@ -129,7 +129,7 @@ run_benchmark() {
     local tpr=$(echo "$output" | grep "Time per request:" | head -1 | awk '{print $4}')
     local p95=$(echo "$output" | grep " 95%" | awk '{print $2}')
     local failed=$(echo "$output" | grep "Failed requests:" | awk '{print $3}')
-    
+
     # Use default values if metrics are missing
     rps=${rps:-"N/A"}
     tpr=${tpr:-"N/A"}
@@ -138,7 +138,7 @@ run_benchmark() {
 
     # Append to results temp file
     echo "| $test_name | $rps | ${tpr}ms | ${p95}ms | $failed |" >> "$RESULTS_TEMP_FILE"
-    
+
     echo -e "\n"
 }
 
@@ -168,9 +168,9 @@ benchmark_echo() {
     }
 }
 EOF
-    
+
     run_benchmark "Echo Endpoint (POST JSON)" "http://localhost:$SERVER_PORT/echo" "POST" "$test_data_file"
-    
+
     # Clean up
     rm -f "$test_data_file"
 }
@@ -184,24 +184,24 @@ benchmark_delayed() {
 run_all_benchmarks() {
     log_info "Starting comprehensive benchmark suite..."
     echo ""
-    
+
     benchmark_health
     benchmark_users
     benchmark_echo
     benchmark_delayed
-    
+
     log_success "All benchmarks completed"
 }
 
 # Generate benchmark report
 generate_report() {
     log_info "Generating benchmark summary..."
-    
+
     # Create reports directory if it doesn't exist
     mkdir -p benchmarks/reports
-    
+
     local report_file="benchmarks/reports/benchmark_report_$(date +%Y%m%d_%H%M%S).md"
-    
+
     cat > "$report_file" << EOF
 # Molock Benchmark Report
 Generated: $(date)
@@ -236,7 +236,7 @@ $(head -20 config/molock-config.yaml)
 4. Run benchmarks in isolated environment for consistent results
 
 EOF
-    
+
     log_success "Report generated: $report_file"
 }
 
@@ -249,19 +249,19 @@ cleanup() {
         log_info "Docker mode: No cleanup needed (services remain running)"
         return 0
     fi
-    
+
     log_info "Cleaning up..."
-    
+
     # Kill the server
     if [ -n "$SERVER_PID" ] && kill -0 $SERVER_PID 2>/dev/null; then
         log_info "Stopping Molock server (PID: $SERVER_PID)..."
         kill $SERVER_PID 2>/dev/null || true
         sleep $SERVER_SHUTDOWN_WAIT
     fi
-    
+
     # Clean up any remaining processes
     lsof -ti:$SERVER_PORT | xargs kill -9 2>/dev/null || true
-    
+
     log_success "Cleanup completed"
 }
 
@@ -326,25 +326,25 @@ EOF
 main() {
     log_info "Starting Molock Benchmark Suite"
     echo "================================================"
-    
+
     # Parse arguments
     parse_args "$@"
-    
+
     if [ "$DOCKER_MODE" = true ]; then
         log_info "Running in Docker mode (port: $SERVER_PORT)"
         log_info "Assuming Docker Compose stack is already running..."
         log_info "If not, run: make docker-run"
         echo ""
     fi
-    
+
     # Set up trap for cleanup (only for non-Docker mode)
     if [ "$DOCKER_MODE" = false ]; then
         trap cleanup EXIT INT TERM
     fi
-    
+
     # Run setup steps
     check_ab_installed
-    
+
     if [ "$DOCKER_MODE" = false ]; then
         build_project
         start_server
@@ -353,13 +353,13 @@ main() {
         # Wait a moment to ensure Docker services are ready
         sleep 2
     fi
-    
+
     # Run benchmarks
     run_all_benchmarks
-    
+
     # Generate report
     generate_report
-    
+
     if [ "$DOCKER_MODE" = true ]; then
         log_info ""
         log_info "Docker benchmark completed!"

@@ -1,0 +1,14 @@
+# Clippy configuration for Molock Quality Gates
+
+# Cognitive complexity threshold.
+# Functions exceeding this will trigger a warning.
+# Recommended default is 25. High-rigor projects use 15-20.
+cognitive-complexity-threshold = 25
+
+# Maximum number of arguments a function can take.
+# More than 7 usually indicates a need for a struct.
+too-many-arguments-threshold = 7
+
+# Maximum number of lines for a function (excluding tests/comments).
+# This is a soft limit enforced by the project guidelines.
+# function-result-size-threshold = 50

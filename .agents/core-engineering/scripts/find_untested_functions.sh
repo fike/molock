@@ -34,17 +34,17 @@ echo "----------------------------------------------------------------"
 LINE_NUMBER=0
 while IFS= read -r line; do
     LINE_NUMBER=$((LINE_NUMBER + 1))
-    
+
     # Skip test functions and test module declarations
     if echo "$line" | grep -q "test_\|#\[test\]\|#\[cfg(test)\]"; then
         continue
     fi
-    
+
     # Look for function definitions (pub fn or fn with lowercase starting name)
     if echo "$line" | grep -q "^\s*pub fn\|^\s*fn [a-z_]"; then
         # Extract function name
         FUNC_NAME=$(echo "$line" | sed -n 's/.*fn \([a-zA-Z_][a-zA-Z0-9_]*\).*/\1/p')
-        
+
         # Check if there's a test for this function
         if grep -q "test_$FUNC_NAME\|test_.*$FUNC_NAME" "$FILE"; then
             echo "✓ $LINE_NUMBER: $FUNC_NAME (has test)"

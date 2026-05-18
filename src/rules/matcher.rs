@@ -81,7 +81,7 @@ impl RuleMatcher {
                 let mut re_map = HashMap::new();
                 for (header, re_str) in headers_regex_map {
                     if let Ok(re) = Regex::new(re_str) {
-                        re_map.insert(header.clone(), re);
+                        re_map.insert(header.to_lowercase(), re);
                     }
                 }
                 headers_regexes.insert(endpoint.name.clone(), re_map);
@@ -192,14 +192,14 @@ impl RuleMatcher {
     fn matches_headers(&self, endpoint_name: &str, headers: &HashMap<String, String>) -> bool {
         if let Some(re_map) = self.headers_regexes.get(endpoint_name) {
             for (header_name, re) in re_map {
-                // Headers in actix-web are usually lowercase in keys when converted to HashMap
-                // but let's be safe and check case-insensitively for the key.
-                let value = headers
-                    .get(header_name)
-                    .or_else(|| headers.get(&header_name.to_lowercase()));
+                // Incoming header keys might not be lowercase in the HashMap,
+                // but we pre-lowercased our rule keys.
+                let found = headers
+                    .iter()
+                    .find(|(k, _)| k.to_lowercase() == *header_name);
 
-                match value {
-                    Some(v) => {
+                match found {
+                    Some((_, v)) => {
                         if !re.is_match(v) {
                             return false;
                         }
@@ -213,16 +213,15 @@ impl RuleMatcher {
 
     fn matches_query(&self, endpoint_name: &str, query: &str) -> bool {
         if let Some(re_map) = self.query_regexes.get(endpoint_name) {
-            // Parse query string into a map
-            let query_map: HashMap<String, String> = query
-                .split('&')
-                .filter_map(|s| s.split_once('='))
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect();
-
             for (param_name, re) in re_map {
-                match query_map.get(param_name) {
-                    Some(v) => {
+                // Lazy scan query string for the parameter
+                let found = query
+                    .split('&')
+                    .filter_map(|s| s.split_once('='))
+                    .find(|(k, _)| k == param_name);
+
+                match found {
+                    Some((_, v)) => {
                         if !re.is_match(v) {
                             return false;
                         }

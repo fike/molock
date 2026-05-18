@@ -17,6 +17,14 @@ services:
       - "8081:1080"
     environment:
       MOCKSERVER_INITIALIZATION_JSON_PATH: /config/expectations.json
-      MOCKSERVER_LOG_LEVEL: WARN
+      MOCKSERVER_LOG_LEVEL: ERROR
+      MOCKSERVER_NIO_EVENT_LOOP_THREAD_COUNT: 8
+      MOCKSERVER_ACTION_HANDLER_THREAD_COUNT: 16
+      MOCKSERVER_MAX_EXPECTATIONS: 100
+      JAVA_OPTS: >
+        -Xms1g -Xmx1g
+        -XX:+UseG1GC
+        -Dmockserver.disableLogging=true
+        -Dmockserver.requestMatchersFailFast=true
     volumes:
       - ../benchmarks/mockserver-expectations:/config

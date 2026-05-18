@@ -13,7 +13,7 @@ This guide provides concrete steps for AI agents to enforce TDD practices in the
 ### 2. Red-Green-Refactor Cycle
 ```
 RED: Write a failing test
-GREEN: Write minimal code to make test pass  
+GREEN: Write minimal code to make test pass
 REFACTOR: Improve code while tests stay green
 ```
 
@@ -44,19 +44,19 @@ grep -n "^\s*pub fn\|^\s*fn [a-z_]" src/path/to/module.rs | \
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_new_feature_behavior() {
         // Arrange
         let input = "test_input";
-        
+
         // Act
         let result = new_feature(input);
-        
+
         // Assert
         assert_eq!(result, expected_output);
     }
-    
+
     #[test]
     #[should_panic(expected = "error message")]
     fn test_new_feature_error_case() {
@@ -117,20 +117,20 @@ echo "Run: cargo tarpaulin --lib --src $MODULE for coverage details"
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_function_name() {
         // Arrange - setup test data
         let input = "test";
-        
+
         // Act - call the function
         let result = function_name(input);
-        
+
         // Assert - verify results
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), expected_value);
     }
-    
+
     #[test]
     fn test_function_name_error_case() {
         // Test error handling
@@ -138,7 +138,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "expected error");
     }
-    
+
     #[test]
     #[should_panic(expected = "panic message")]
     fn test_function_name_panic() {
@@ -163,10 +163,10 @@ async fn test_async_function() {
 #[actix_web::test]
 async fn test_endpoint() {
     let app = test::init_service(App::new().route("/test", web::get().to(handler))).await;
-    
+
     let req = test::TestRequest::get().uri("/test").to_request();
     let resp = test::call_service(&app, req).await;
-    
+
     assert_eq!(resp.status(), 200);
 }
 ```
@@ -223,14 +223,14 @@ pub fn legacy_function(x: i32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_legacy_function_basic() {
         assert_eq!(legacy_function(2), 4);
         assert_eq!(legacy_function(0), 0);
         assert_eq!(legacy_function(-3), -6);
     }
-    
+
     #[test]
     fn test_legacy_function_edge_cases() {
         assert_eq!(legacy_function(i32::MAX / 2), i32::MAX - 1);
@@ -286,7 +286,7 @@ mod tests {
 # TDD Quick Start
 1. cargo test --lib                    # Check current state
 2. Write failing test                  # RED
-3. cargo test --lib                    # Verify test fails  
+3. cargo test --lib                    # Verify test fails
 4. Implement minimal solution          # GREEN
 5. cargo test --lib                    # Verify test passes
 6. Refactor                            # REFACTOR

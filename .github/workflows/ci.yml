@@ -43,6 +43,32 @@ jobs:
       - name: Run unit tests
         run: cargo test --features otel -- --test-threads=1
 
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Tarpaulin
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin/cargo-tarpaulin
+          key: ${{ runner.os }}-cargo-tarpaulin
+
+      - name: Install Tarpaulin
+        run: |
+          if ! command -v cargo-tarpaulin &> /dev/null; then
+            cargo install cargo-tarpaulin
+          fi
+
+      - name: Run coverage
+        run: cargo tarpaulin --all-features --ignore-tests --fail-under 80 --out xml
+
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest

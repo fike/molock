@@ -8,10 +8,10 @@ This document provides comprehensive guidance for benchmarking the Molock high-p
    ```bash
    # Ubuntu/Debian
    sudo apt-get install apache2-utils
-   
+
    # macOS
    brew install apachebench
-   
+
    # RHEL/CentOS
    sudo yum install httpd-tools
    ```

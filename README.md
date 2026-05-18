@@ -213,7 +213,7 @@ make benchmark
 
 # Run individual benchmark scenarios
 make benchmark-health     # Health endpoint benchmarks
-make benchmark-users     # User endpoint benchmarks  
+make benchmark-users     # User endpoint benchmarks
 make benchmark-delay     # Delayed response benchmarks
 make benchmark-post      # POST endpoint benchmarks
 ```

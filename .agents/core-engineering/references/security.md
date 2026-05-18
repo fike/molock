@@ -214,7 +214,7 @@ Before submitting a PR, verify:
 - [ ] No secrets, tokens, or passwords in code
 - [ ] All inputs are validated
 - [ ] No SQL injection vulnerabilities
-- [ ] No command injection vulnerabilities  
+- [ ] No command injection vulnerabilities
 - [ ] Sensitive data not logged
 - [ ] Proper authentication/authorization in place
 - [ ] Rate limiting implemented for public endpoints

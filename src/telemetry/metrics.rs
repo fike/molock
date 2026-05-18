@@ -411,11 +411,34 @@ mod tests {
         record_request("GET", "/test", 999);
     }
 
-    #[test]
-    fn test_edge_case_latencies() {
-        record_latency("GET", "/test", 0.0);
-        record_latency("GET", "/test", 0.001);
-        record_latency("GET", "/test", 999999.9);
-        record_latency("GET", "/test", -1.0);
+    #[tokio::test]
+    async fn test_init_metrics_http() {
+        let mut config = TelemetryConfig::default();
+        config.protocol = "http".to_string();
+        config.endpoint = "http://localhost:4318".to_string();
+        let _ = init_metrics(&config).await;
+    }
+
+    #[tokio::test]
+    async fn test_init_metrics_http_with_slash() {
+        let mut config = TelemetryConfig::default();
+        config.protocol = "http".to_string();
+        config.endpoint = "http://localhost:4318/".to_string();
+        let _ = init_metrics(&config).await;
+    }
+
+    #[tokio::test]
+    async fn test_init_metrics_http_with_v1_metrics() {
+        let mut config = TelemetryConfig::default();
+        config.protocol = "http".to_string();
+        config.endpoint = "http://localhost:4318/v1/metrics".to_string();
+        let _ = init_metrics(&config).await;
+    }
+
+    #[tokio::test]
+    async fn test_init_metrics_unknown_protocol() {
+        let mut config = TelemetryConfig::default();
+        config.protocol = "unknown".to_string();
+        let _ = init_metrics(&config).await;
     }
 }

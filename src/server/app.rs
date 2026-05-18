@@ -134,4 +134,16 @@ mod tests {
         assert_eq!(app_state._config.endpoints.len(), 1);
         assert_eq!(app_state._config.endpoints[0].name, "Test");
     }
+
+    #[actix_web::test]
+    async fn test_openapi_json_handler() {
+        let resp = openapi_json_handler()
+            .await
+            .respond_to(&actix_web::test::TestRequest::default().to_http_request());
+        assert_eq!(resp.status(), 200);
+        assert_eq!(
+            resp.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/json"
+        );
+    }
 }

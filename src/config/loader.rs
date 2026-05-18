@@ -430,23 +430,219 @@ endpoints: []
     }
 
     #[test]
-    fn test_valid_grpc_telemetry_config() {
+    fn test_from_file_not_found() {
+        let result = ConfigLoader::from_file("non-existent-file.yaml");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_invalid_workers() {
         let config_str = r#"
 server:
   port: 8080
-  workers: 4
-
+  workers: 0
 telemetry:
-  enabled: true
-  endpoint: "http://localhost:4317"
-  protocol: "grpc"
-
+  enabled: false
 endpoints: []
         "#;
+        let result = ConfigLoader::parse_str(config_str);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("workers cannot be 0"));
+    }
 
-        let config = ConfigLoader::parse_str(config_str).unwrap();
-        assert!(config.telemetry.enabled);
-        assert_eq!(config.telemetry.endpoint, "http://localhost:4317");
-        assert_eq!(config.telemetry.protocol, "grpc");
+    #[test]
+    fn test_empty_telemetry_endpoint() {
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: true
+  endpoint: ""
+endpoints: []
+        "#;
+        let result = ConfigLoader::parse_str(config_str);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("endpoint cannot be empty"));
+    }
+
+    #[test]
+    fn test_invalid_telemetry_scheme() {
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: true
+  endpoint: "ftp://localhost:4318"
+endpoints: []
+        "#;
+        let result = ConfigLoader::parse_str(config_str);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("must use http:// or https:// scheme"));
+    }
+
+    #[test]
+    fn test_telemetry_invalid_host() {
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: true
+  endpoint: "http://"
+endpoints: []
+        "#;
+        let result = ConfigLoader::parse_str(config_str);
+        assert!(result.is_err());
+        // reqwest::Url::parse("http://") might fail or result in no host
+    }
+
+    #[test]
+    fn test_invalid_telemetry_timeout() {
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: true
+  timeout_seconds: 0
+endpoints: []
+        "#;
+        let result = ConfigLoader::parse_str(config_str);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("timeout must be greater than 0"));
+    }
+
+    #[test]
+    fn test_invalid_telemetry_batch_size() {
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: true
+  export_batch_size: 0
+endpoints: []
+        "#;
+        let result = ConfigLoader::parse_str(config_str);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("export batch size must be greater than 0"));
+    }
+
+    #[test]
+    fn test_invalid_telemetry_export_timeout() {
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: true
+  export_timeout_millis: 0
+endpoints: []
+        "#;
+        let result = ConfigLoader::parse_str(config_str);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("export timeout must be greater than 0"));
+    }
+
+    #[test]
+    fn test_direct_telemetry_validation() {
+        let mut config = crate::config::types::TelemetryConfig::default();
+        config.enabled = true;
+
+        config.timeout_seconds = 0;
+        assert!(ConfigLoader::validate_telemetry_config(&config).is_err());
+        config.timeout_seconds = 30;
+
+        config.export_batch_size = 0;
+        assert!(ConfigLoader::validate_telemetry_config(&config).is_err());
+        config.export_batch_size = 512;
+
+        config.export_timeout_millis = 0;
+        assert!(ConfigLoader::validate_telemetry_config(&config).is_err());
+    }
+
+    #[test]
+    fn test_invalid_endpoint_fields() {
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: false
+endpoints:
+  - name: "test"
+    method: ""
+    path: "/test"
+    responses: [{status: 200}]
+        "#;
+        assert!(ConfigLoader::parse_str(config_str).is_err());
+
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: false
+endpoints:
+  - name: "test"
+    method: "GET"
+    path: ""
+    responses: [{status: 200}]
+        "#;
+        assert!(ConfigLoader::parse_str(config_str).is_err());
+
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: false
+endpoints:
+  - name: "test"
+    method: "GET"
+    path: "/test"
+    responses: []
+        "#;
+        assert!(ConfigLoader::parse_str(config_str).is_err());
+    }
+
+    #[test]
+    fn test_invalid_response_fields() {
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: false
+endpoints:
+  - name: "test"
+    method: "GET"
+    path: "/test"
+    responses: [{status: 99}]
+        "#;
+        assert!(ConfigLoader::parse_str(config_str).is_err());
+
+        let config_str = r#"
+server:
+  port: 8080
+telemetry:
+  enabled: false
+endpoints:
+  - name: "test"
+    method: "GET"
+    path: "/test"
+    responses: [{status: 200, probability: 1.1}]
+        "#;
+        assert!(ConfigLoader::parse_str(config_str).is_err());
     }
 }

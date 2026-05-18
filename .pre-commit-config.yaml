@@ -1,0 +1,35 @@
+# Pre-commit configuration for Molock
+# See https://pre-commit.com for more information
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: rust-fmt
+        name: Rust Format
+        entry: cargo fmt --all --
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: rust-clippy
+        name: Rust Clippy
+        entry: cargo clippy --features otel -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: pedantic-lint
+        name: Pedantic Lint (Clean Code)
+        entry: ./.agents/code-quality/scripts/find_code_smells.sh
+        language: system
+        types: [rust]
+        pass_filenames: false

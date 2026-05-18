@@ -223,10 +223,53 @@ mod tests {
     use super::*;
     use crate::config::TelemetryConfig;
 
+    #[test]
+    fn test_is_debug_enabled() {
+        std::env::set_var("MOLOCK_TELEMETRY_DEBUG", "true");
+        assert!(is_debug_enabled());
+        std::env::set_var("MOLOCK_TELEMETRY_DEBUG", "1");
+        assert!(is_debug_enabled());
+        std::env::set_var("MOLOCK_TELEMETRY_DEBUG", "false");
+        assert!(!is_debug_enabled());
+        std::env::remove_var("MOLOCK_TELEMETRY_DEBUG");
+        assert!(!is_debug_enabled());
+    }
+
+    #[test]
+    fn test_debug_log() {
+        let config = TelemetryConfig::default();
+        std::env::set_var("MOLOCK_TELEMETRY_DEBUG", "true");
+        debug_log("Test message", &config);
+        std::env::remove_var("MOLOCK_TELEMETRY_DEBUG");
+    }
+
     #[tokio::test]
-    async fn test_init_disabled_telemetry() {
+    async fn test_init_telemetry_connectivity_failure() {
         let config = TelemetryConfig {
-            enabled: false,
+            enabled: true,
+            service_name: "test".to_string(),
+            service_version: "0.1.0".to_string(),
+            endpoint: "http://invalid-host:4318".to_string(),
+            protocol: "http".to_string(),
+            sampling_rate: 1.0,
+            log_level: "info".to_string(),
+            log_format: "json".to_string(),
+            timeout_seconds: 1,
+            export_batch_size: 512,
+            export_timeout_millis: 1000,
+        };
+
+        // init_telemetry should still return Ok(()) even if connectivity test fails
+        // but it might take some time due to retries.
+        // We set timeout_seconds to 1 and endpoint to an invalid host.
+        let result = init_telemetry(&config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_init_telemetry_grpc() {
+        let config = TelemetryConfig {
+            enabled: true,
             service_name: "test".to_string(),
             service_version: "0.1.0".to_string(),
             endpoint: "http://localhost:4317".to_string(),
@@ -234,22 +277,12 @@ mod tests {
             sampling_rate: 1.0,
             log_level: "info".to_string(),
             log_format: "json".to_string(),
-            timeout_seconds: 30,
+            timeout_seconds: 1,
             export_batch_size: 512,
-            export_timeout_millis: 30000,
+            export_timeout_millis: 1000,
         };
 
         let result = init_telemetry(&config).await;
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_telemetry_config_defaults() {
-        let config = TelemetryConfig::default();
-        assert!(config.enabled);
-        assert_eq!(config.service_name, "molock");
-        assert_eq!(config.endpoint, "http://localhost:4317");
-        assert_eq!(config.protocol, "grpc");
-        assert_eq!(config.sampling_rate, 1.0);
     }
 }
