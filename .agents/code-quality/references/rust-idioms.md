@@ -1,5 +1,16 @@
 # Rust Idiomatic Patterns & Clean Code
 
+## Project Legibility Standards
+
+### 1. File Size Limits
+- **Mental Lint**: Aim for a maximum of **1,000 lines of code (LOC)** per file.
+- **Action**: If a file exceeds this limit, look for logical sub-concepts to move into a directory-based module (e.g., `auth.rs` becomes `auth/mod.rs`).
+
+### 2. Function Complexity & Length
+- **Cognitive Complexity**: Maintain a maximum cognitive complexity of **25** (enforced by Clippy).
+- **Function Length**: Functions should ideally fit on one screen (**~40-60 lines**). If a function requires extensive scrolling to understand, it should be decomposed.
+- **Parameter Count**: Functions taking more than **7 arguments** should use a configuration struct or the "Builder" pattern.
+
 ## Memory Management & Performance
 
 ### 1. Avoid Excessive Cloning

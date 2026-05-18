@@ -61,21 +61,21 @@ fn get_tracer() -> Option<SdkTracer> {
 /// from incoming request headers (W3C `traceparent`/`tracestate`). Pass
 /// `&Context::current()` when no parent context is available.
 pub fn create_http_server_span(
-    name: String,
-    method: String,
-    target: String,
-    route: String,
+    name: &str,
+    method: &str,
+    target: &str,
+    route: &str,
     parent_cx: &Context,
 ) -> Option<Span> {
     let tracer = get_tracer()?;
 
     let span = tracer
-        .span_builder(name)
+        .span_builder(name.to_string())
         .with_kind(SpanKind::Server)
         .with_attributes(vec![
-            attributes::kv::http_method(&method),
-            attributes::kv::http_target(&target),
-            attributes::kv::http_route(&route),
+            attributes::kv::http_method(method),
+            attributes::kv::http_target(target),
+            attributes::kv::http_route(route),
         ])
         .start_with_context(&tracer, parent_cx);
 
@@ -125,10 +125,10 @@ mod tests {
 
         let cx = Context::current();
         let span = create_http_server_span(
-            "test-span".to_string(),
-            "GET".to_string(),
-            "/test".to_string(),
-            "/test".to_string(),
+            "test-span",
+            "GET",
+            "/test",
+            "/test",
             &cx,
         );
         assert!(span.is_none());
@@ -192,10 +192,10 @@ mod tests {
 
         let cx = Context::current();
         let span = create_http_server_span(
-            "http.request".to_string(),
-            "GET".to_string(),
-            "/api/users".to_string(),
-            "/api/users".to_string(),
+            "http.request",
+            "GET",
+            "/api/users",
+            "/api/users",
             &cx,
         );
 
@@ -229,10 +229,10 @@ mod tests {
         // and executes without panicking — the absence of the attribute is enforced
         // by code inspection of the `with_attributes` list above.
         let span = create_http_server_span(
-            "http.request".to_string(),
-            "GET".to_string(),
-            "/test".to_string(),
-            "/test".to_string(),
+            "http.request",
+            "GET",
+            "/test",
+            "/test",
             &cx,
         );
         assert!(span.is_some());
@@ -271,10 +271,10 @@ mod tests {
         let parent_cx = Context::current().with_remote_span_context(parent_span_ctx.clone());
 
         let span = create_http_server_span(
-            "http.request".to_string(),
-            "GET".to_string(),
-            "/api/resource".to_string(),
-            "/api/resource".to_string(),
+            "http.request",
+            "GET",
+            "/api/resource",
+            "/api/resource",
             &parent_cx,
         );
 
@@ -369,10 +369,10 @@ mod tests {
 
         for method in methods {
             let span = create_http_server_span(
-                "http.request".to_string(),
-                method.to_string(),
-                "/api/test".to_string(),
-                "/api/test".to_string(),
+                "http.request",
+                method,
+                "/api/test",
+                "/api/test",
                 &cx,
             );
 
@@ -408,10 +408,10 @@ mod tests {
 
         for path in paths {
             let span = create_http_server_span(
-                "http.request".to_string(),
-                "GET".to_string(),
-                path.to_string(),
-                path.to_string(),
+                "http.request",
+                "GET",
+                path,
+                path,
                 &cx,
             );
 
@@ -438,10 +438,10 @@ mod tests {
 
         let cx = Context::current();
         let span = create_http_server_span(
-            "http.request".to_string(),
-            "POST".to_string(),
-            "/api/users".to_string(),
-            "/api/users".to_string(),
+            "http.request",
+            "POST",
+            "/api/users",
+            "/api/users",
             &cx,
         )
         .unwrap();

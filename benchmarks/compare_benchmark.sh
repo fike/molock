@@ -98,7 +98,20 @@ docker-compose -f deployment/docker-compose-benchmark.yml up -d --build
 
 # Wait for services
 log_info "Waiting for services to be ready..."
-sleep 10
+
+# Wait for Molock
+log_info "Waiting for Molock (8080)..."
+until curl -s "$MOLOCK_URL/health" > /dev/null; do
+  sleep 1
+done
+
+# Wait for MockServer (can take long due to 6GB AlwaysPreTouch)
+log_info "Waiting for MockServer (8081)... this may take up to 60s due to 6GB RAM pre-touch..."
+until curl -s -X PUT "$MOCKSERVER_URL/mockserver/status" > /dev/null; do
+  sleep 2
+done
+
+log_success "All services are UP and ready!"
 
 # Create a test POST file
 POST_DATA="/tmp/order_data.json"
