@@ -339,6 +339,10 @@ Molock is designed for high-performance scenarios. Below is a consolidated compa
 - **Resource Efficiency**: Molock remains stable under high concurrency (300+ connections) where MockServer fails due to resource exhaustion.
 - **Latency**: Molock's tail latency (P95) under maximum load is still significantly lower than MockServer's baseline latency.
 
+## Technical Documentation
+
+Molock uses **Architectural Decision Records (ADRs)** to document significant technical choices. You can find the historical context and rationale for the project's architecture in the [docs/adr/](docs/adr/) directory.
+
 ## License
 
 Molock is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
