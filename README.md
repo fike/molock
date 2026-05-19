@@ -1,75 +1,81 @@
 # Molock - High-Performance Mock Server
 
-Molock is a production-ready mock server for CI/CD pipelines, stress testing, and other testing scenarios. Built in Rust with Actix-web, it provides high-performance, configurable, and observable mock endpoints with OpenTelemetry integration.
-
-## Features
-
-- **High Performance**: Built with Rust and Actix-web for maximum throughput
-- **Dynamic Rules**: Configure endpoints with flexible matching rules
-- **Response Control**: Add delays, failure injection, and stateful behavior
-- **OpenTelemetry Integration**: Built-in tracing, metrics, and logging
-- **Hot Reload**: Watch configuration files for live updates
-- **Docker Ready**: Production-ready container images
-- **Comprehensive Testing**: >80% code coverage with unit and integration tests
-
-## Security & Supply Chain
+Molock is a production-ready mock server designed for high-throughput environments, CI/CD pipelines, and stress testing. Built in Rust with Actix-web, it provides configurable and observable mock endpoints with native OpenTelemetry integration.
 
 [![SLSA 2](https://slsa.dev/images/level-2-badge.svg)](https://slsa.dev/level-2)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-Molock is committed to supply chain security. The project implements OpenSSF SLSA Level 2 requirements:
+## 🏛️ Core Pillars
 
-- **Provenance**: Cryptographically signed build provenance for all releases
-- **Hosted Build**: All builds run on GitHub Actions (hosted infrastructure)
-- **Verified**: SLSA provenance is automatically verified in CI on main branch
+Molock is built on three foundational pillars:
 
-### Verifying Releases
+1.  🚀 **Extreme Performance**: Leveraging Rust and Actix-web for zero-allocation hot paths and maximum throughput (>10k req/s).
+2.  🔭 **Native Observability**: OpenTelemetry is a first-class citizen, providing out-of-the-box traces, metrics, and logs.
+3.  🛡️ **Rigorous Quality**: Developed using strict Test-Driven Development (TDD) with >80% line/branch coverage and SLSA Level 2 supply chain security.
 
-You can verify the authenticity of Molock releases using the SLSA verifier:
+## 🏗️ Architecture
 
-```bash
-# Install the SLSA verifier
-go install github.com/slsa-framework/slsa-verifier/cli/slsa-verifier@latest
+Molock follows a modular architecture designed for speed and extensibility:
 
-# Verify a release
-slsa-verifier --provenance-path <provenance-file> --artifact-path <binary> --source-uri github.com/fike/molock
+```mermaid
+graph TD
+    Client[HTTP Client] --> Server[Actix-web Server]
+    Server --> Engine[Rule Engine]
+    Engine --> Matcher{Request Matcher}
+    Matcher -->|Match| Exec[Executor]
+    Matcher -->|No Match| Fallback[404 Default]
+    Exec --> Template[Template Renderer]
+    Template --> Response[HTTP Response]
+
+    Server -.-> Telemetry[Tracing/Metrics/Logs]
+    Telemetry -.-> Collector[OTel Collector]
 ```
 
-Release artifacts and provenance are available on the [Releases](https://github.com/fike/molock/releases) page.
+## ✨ Features
 
-## Quick Start
+- **High Performance**: Built for speed and stability under high concurrency.
+- **Dynamic Rules**: Match requests by Method, Path (with params), Headers, Query, and Body.
+- **Response Control**: Failure injection (probability), fixed/random delays, and custom headers.
+- **Stateful Logic**: Per-client state counters for simulating retry patterns.
+- **Hot Reload**: Automatic configuration reloading without server restart.
+- **Docker Ready**: Optimized container images for easy deployment.
+
+## 🚀 Quick Start
 
 ### Prerequisites
 - Rust 1.70+
-- Docker and Docker Compose (for deployment)
+- Docker & Docker Compose (for the observability stack)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/molock.git
+git clone https://github.com/fike/molock.git
 cd molock
 
-# Build the project
+# Build and run
 make build
-
-# Run tests
-make test
-
-# Start the server
 make run
 ```
 
-### Using Docker
+### Immediate Usage
+
+Test the default configuration with `curl`:
 
 ```bash
-# Build and run with Docker Compose
-make docker-build
-make docker-run
+# Health check (with dynamic timestamp)
+curl http://localhost:8080/health
+
+# Path parameter matching
+curl http://localhost:8080/users/123
+
+# Regex/Condition matching (triggers 404)
+curl http://localhost:8080/users/unknown
 ```
 
-## Configuration
+## ⚙️ Configuration
 
-Molock uses YAML configuration files. See `config/molock-config.yaml` for examples:
+Molock uses YAML for configuration. A simple example:
 
 ```yaml
 server:
@@ -87,262 +93,67 @@ endpoints:
       - status: 404
         condition: "id == 'unknown'"
         body: '{"error": "not found"}'
-
-  - name: "Retry Example"
-    method: GET
-    path: "/retry"
-    stateful: true
-    responses:
-      - status: 200
-        condition: "request_count > 2"
-        body: "OK"
-      - status: 503
-        default: true
-        body: "Service Unavailable"
 ```
 
-### Configuration Options
+See [config/molock-config.yaml](config/molock-config.yaml) for a comprehensive reference of all features including templating, stateful logic, and telemetry settings.
 
-- **Server**: Port, workers, host, and request size limits
-- **Telemetry**: OpenTelemetry endpoint, service name, sampling rate
-- **Logging**: Log level, format, and OpenTelemetry log integration
-- **Endpoints**: HTTP methods, paths with parameters, response rules
+## 🔭 Observability
 
-### Response Features
+Molock integrates deeply with the OpenTelemetry ecosystem:
 
-- **Delays**: Fixed (`100ms`) or random ranges (`100-500ms`)
-- **Conditions**: Simple expressions using request data
-- **Probability**: Random response selection with weights
-- **Stateful**: Per-client counters for retry logic
-- **Templates**: Dynamic response generation with variables
+- **Traces**: Full request lifecycle spans exported via OTLP.
+- **Metrics**: Prometheus-compatible metrics for throughput, latency, and error rates.
+- **Logs**: Structured JSON logging with trace context correlation.
 
-## Observability
+### Local Monitoring Stack
 
-Molock integrates with OpenTelemetry for comprehensive observability:
-
-- **Traces**: Request spans with timing and metadata
-- **Metrics**: Request counts, errors, and latency histograms
-- **Logs**: Structured JSON logging with trace context
-
-### Local Development Stack
+Start the provided stack to visualize performance:
 
 ```bash
-# Start the full observability stack
-docker-compose -f deployment/docker-compose.yml up
+docker-compose -f deployment/docker-compose.yml up -d
 ```
 
-Access the monitoring tools:
-- **Jaeger**: http://localhost:16686 (traces)
-- **Prometheus**: http://localhost:9090 (metrics)
-- **Grafana**: http://localhost:3000 (dashboards)
+- **Jaeger**: [http://localhost:16686](http://localhost:16686)
+- **Prometheus**: [http://localhost:9090](http://localhost:9090)
+- **Grafana**: [http://localhost:3000](http://localhost:3000) (Includes pre-built Molock dashboards)
 
-## API Reference
+## 📊 Performance Benchmark
 
-### Health Check
-```http
-GET /health
-```
+Molock delivers **10x higher throughput** than Java-based alternatives (like MockServer) while maintaining stability under 300+ concurrent connections.
 
-Returns server health status.
+| Scenario | Tool | Concurrency | Req/sec | P95 Latency |
+| :--- | :--- | :---: | :---: | :---: |
+| **Health Check** | **Molock** | 100 | **12,086** | 13ms |
+| | MockServer | 100 | 1,222 | 223ms |
+| **User Retrieval**| **Molock** | 300 | **9,528** | 52ms |
+| | MockServer | 300 | 0 (Failed) | N/A |
 
-### Metrics
-```http
-GET /metrics
-```
+For detailed methodology, see [BENCHMARKING.md](BENCHMARKING.md).
 
-Prometheus-formatted metrics (when not using OTLP).
-
-### Mock Endpoints
-
-All configured endpoints are available at their specified paths. The server matches requests based on:
-- HTTP method
-- Path (with parameter support: `/users/:id`)
-- Query parameters
-- Headers
-- Request body
-
-## Development
-
-### Project Structure
-
-```
-molock/
-├── src/
-│   ├── config/     # Configuration loading and parsing
-│   ├── server/     # Actix web server setup
-│   ├── rules/      # Rule matching and execution
-│   ├── telemetry/  # OpenTelemetry integration
-│   └── utils/      # Helper functions
-├── tests/          # Integration tests
-├── config/         # Configuration files
-└── deployment/     # Docker and deployment artifacts
-```
+## 🛠️ Development
 
 ### Building and Testing
 
 ```bash
-# Build release binary
-make build
-
-# Run all tests
-make test
-
-# Run tests with coverage
-make test-coverage
-
-# Check code quality
-make lint
-make fmt
-
-# Development mode
-make dev
+make build          # Build release binary
+make test           # Run unit and integration tests
+make test-coverage  # Generate coverage report (requires tarpaulin)
+make lint           # Run clippy and format checks
 ```
 
-### Benchmarking
+### Contributing
 
-Molock includes comprehensive Apache Benchmark (ab) tests for performance evaluation:
+We follow strict TDD principles. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for our workflow, quality standards, and branch protocol.
 
-```bash
-# Install Apache Benchmark (if not already installed)
-sudo apt-get install apache2-utils  # Ubuntu/Debian
-brew install apachebench            # macOS
-sudo yum install httpd-tools        # RHEL/CentOS
+### Technical Documentation
 
-# Run comprehensive benchmark suite
-make benchmark
+- **ADRs**: See [docs/adr/](docs/adr/) for architectural decisions.
+- **API Docs**: API documentation is available on [docs.rs/molock](https://docs.rs/molock).
+- **User Guide**: An extended manual is being developed at [fike.github.io/molock](https://fike.github.io/molock).
 
-# Run individual benchmark scenarios
-make benchmark-health     # Health endpoint benchmarks
-make benchmark-users     # User endpoint benchmarks
-make benchmark-delay     # Delayed response benchmarks
-make benchmark-post      # POST endpoint benchmarks
-```
+## ⚖️ License
 
-For detailed benchmarking instructions, see [BENCHMARKING.md](BENCHMARKING.md).
+Molock is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
-### Adding New Features (TDD Required)
-
-1. **Write failing tests first** following TDD guidelines in `.ai/TDD_GUIDE.md`
-2. **Implement minimal solution** to make tests pass
-3. **Refactor** while keeping tests green
-4. **Ensure 80%+ test coverage** using `make test-coverage`
-5. Follow coding conventions in `.ai/Agents.md`
-6. Update documentation as needed
-7. Run `make test` and `make lint` before committing
-
-**IMPORTANT**: All contributions MUST follow Test-Driven Development (TDD) principles. PRs without adequate test coverage (<80%) will be rejected.
-
-## Deployment
-
-### Docker
-
-```bash
-# Build the Docker image
-docker build -f deployment/Dockerfile -t molock .
-
-# Run the container
-docker run -p 8080:8080 -v ./config:/etc/molock/config molock
-```
-
-### Kubernetes
-
-See the `deployment/` directory for example Kubernetes manifests.
-
-### Environment Variables
-
-- `MOLOCK_CONFIG_PATH`: Path to configuration file
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry collector endpoint
-- `OTEL_SERVICE_NAME`: Service name for telemetry
-- `RUST_LOG`: Log level (info, debug, trace)
-
-## Contributing
-
-Please read `.ai/CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests.
-
-## Development
-
-### Building and Testing
-
-```bash
-# Build release binary
-make build
-
-# Run all tests
-make test
-
-# Run tests with coverage
-make test-coverage
-
-# Check code quality
-make lint
-make fmt
-
-# Development mode
-make dev
-```
-
-### Adding New Features (TDD Required)
-
-1. **Write failing tests first** following TDD guidelines in `.agents/core-engineering/references/tdd-guide.md`
-2. **Implement minimal solution** to make tests pass
-3. **Refactor** while keeping tests green
-4. **Ensure 80%+ test coverage** using `make test-coverage`
-5. Follow coding conventions in `AGENTS.md`
-6. Update documentation as needed
-7. Run `make test` and `make lint` before committing
-
-**IMPORTANT**: All contributions MUST follow Test-Driven Development (TDD) principles. PRs without adequate test coverage (<80%) will be rejected.
-
-## License
-
-This project is licensed under the Apache-2.0 License - see the LICENSE file for details.
-
-## Support
-
-- **Issues**: Use the GitHub issue tracker
-- **Documentation**: Check `.ai/Skills.md` for technical guidance
-- **Questions**: Open a discussion on GitHub
-
-## Acknowledgments
-
-- Built with [Actix-web](https://actix.rs/)
-- Observability with [OpenTelemetry](https://opentelemetry.io/)
-- Configuration with [Serde](https://serde.rs/)
-- Testing with [Tokio](https://tokio.rs/)
-## Performance Benchmark
-
-Molock is designed for high-performance scenarios. Below is a consolidated comparison between Molock (Rust) and MockServer (Java) under various conditions, conducted in a desktop VM environment.
-
-| Scenario | Tool | Concurrency | Req/sec | Latency (mean) | P95 Latency |
-| :--- | :--- | :---: | :---: | :---: | :---: |
-| **Health Check** (GET) | **Molock** | 100 | **12,086** | 8.2ms | 13ms |
-| | MockServer | 100 | 1,222 | 81.8ms | 223ms |
-| | **Molock** | 200 | **9,368** | 21.3ms | 39ms |
-| | MockServer | 200 | 0 | N/A | N/A |
-| | **Molock** | 300 | **9,124** | 32.8ms | 57ms |
-| | MockServer | 300 | 0 | N/A | N/A |
-| --- | --- | ---: | ---: | ---: | ---: |
-| **User Retrieval** (Regex) | **Molock** | 100 | **7,397** | 13.5ms | 24ms |
-| | MockServer | 100 | 0 | N/A | N/A |
-| | **Molock** | 200 | **9,470** | 21.1ms | 35ms |
-| | MockServer | 200 | 0 | N/A | N/A |
-| | **Molock** | 300 | **9,528** | 31.4ms | 52ms |
-| | MockServer | 300 | 0 | N/A | N/A |
-| --- | --- | ---: | ---: | ---: | ---: |
-| **Order Creation** (POST) | **Molock** | 100 | **7,310** | 13.6ms | 25ms |
-| | MockServer | 100 | 0 | N/A | N/A |
-| | **Molock** | 200 | **8,770** | 22.8ms | 44ms |
-| | **Molock** | 300 | **9,758** | 30.7ms | 51ms |
-
-### Key Findings:
-- **Throughput**: Molock delivers **10x higher throughput** than MockServer in baseline scenarios.
-- **Resource Efficiency**: Molock remains stable under high concurrency (300+ connections) where MockServer fails due to resource exhaustion.
-- **Latency**: Molock's tail latency (P95) under maximum load is still significantly lower than MockServer's baseline latency.
-
-## Technical Documentation
-
-Molock uses **Architectural Decision Records (ADRs)** to document significant technical choices. You can find the historical context and rationale for the project's architecture in the [docs/adr/](docs/adr/) directory.
-
-## License
-
-Molock is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
+---
+*Molock Team - 2026*
