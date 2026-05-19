@@ -1,34 +1,5 @@
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-FileCopyrightText: 2026 Molock Team
+// SPDX-License-Identifier: Apache-2.0
 
 use anyhow::Context;
 use arc_swap::ArcSwap;
@@ -38,7 +9,7 @@ use molock::rules::RuleEngine;
 use molock::server::run_server;
 use molock::telemetry::{init_telemetry, shutdown_telemetry};
 use molock::utils::shutdown_signal;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::info;
 
@@ -60,15 +31,15 @@ async fn main() -> anyhow::Result<()> {
 
 async fn run(args: Args) -> anyhow::Result<()> {
     let config = ConfigLoader::from_file(&args.config)
-        .with_context(|| format!("Failed to load config from {:?}", args.config))?;
+        .with_context(|| format!("Failed to load config from {}", args.config.display()))?;
 
     init_telemetry(&config.telemetry).await?;
 
-    let rule_engine = Arc::new(RuleEngine::new(config.endpoints.clone()));
+    let rule_engine = Arc::new(RuleEngine::new(&config.endpoints));
     let rule_engine_swap = Arc::new(ArcSwap::from(rule_engine.clone()));
 
     if args.hot_reload {
-        start_hot_reload(&args.config, rule_engine_swap.clone()).await?;
+        start_hot_reload(&args.config, rule_engine_swap.clone());
     }
 
     let server = run_server(config, rule_engine).await?;
@@ -81,70 +52,60 @@ async fn run(args: Args) -> anyhow::Result<()> {
         _ = server => {
             info!("Server stopped");
         }
-        _ = shutdown_signal() => {
+        () = shutdown_signal() => {
             info!("Shutdown signal received");
             server_handle.stop(true).await;
             info!("Server shutdown complete");
         }
     }
 
-    shutdown_telemetry().await;
+    shutdown_telemetry();
 
     Ok(())
 }
 
 #[cfg(feature = "hot-reload")]
-async fn start_hot_reload(
-    config_path: &PathBuf,
-    rule_engine_swap: Arc<ArcSwap<RuleEngine>>,
-) -> anyhow::Result<()> {
+fn start_hot_reload(config_path: &Path, rule_engine_swap: Arc<ArcSwap<RuleEngine>>) {
     use notify::{RecommendedWatcher, RecursiveMode, Watcher};
     use std::sync::mpsc;
-    use std::time::Duration;
 
     let (tx, rx) = mpsc::channel();
-    let mut watcher: RecommendedWatcher = Watcher::new(tx, notify::Config::default())?;
+    let mut watcher: RecommendedWatcher = Watcher::new(tx, notify::Config::default()).unwrap();
 
-    watcher.watch(config_path, RecursiveMode::NonRecursive)?;
+    watcher
+        .watch(config_path, RecursiveMode::NonRecursive)
+        .unwrap();
 
-    let config_path = config_path.clone();
+    let config_path = config_path.to_path_buf();
     tokio::spawn(async move {
         while let Ok(Ok(event)) = rx.recv() {
-            match event {
-                notify::Event {
-                    kind: notify::EventKind::Modify(_),
-                    paths,
-                    ..
-                } => {
-                    if paths.iter().any(|p| p == &config_path) {
-                        info!("Configuration file modified, reloading...");
-                        match ConfigLoader::from_file(&config_path) {
-                            Ok(new_config) => {
-                                let new_engine = Arc::new(RuleEngine::new(new_config.endpoints));
-                                rule_engine_swap.store(new_engine);
-                                info!("Configuration reloaded successfully");
-                            }
-                            Err(e) => {
-                                tracing::error!("Failed to reload configuration: {}", e);
-                            }
+            if let notify::Event {
+                kind: notify::EventKind::Modify(_),
+                paths,
+                ..
+            } = event
+            {
+                if paths.iter().any(|p| p == &config_path) {
+                    info!("Configuration file modified, reloading...");
+                    match ConfigLoader::from_file(&config_path) {
+                        Ok(new_config) => {
+                            let new_engine = Arc::new(RuleEngine::new(&new_config.endpoints));
+                            rule_engine_swap.store(new_engine);
+                            info!("Configuration reloaded successfully");
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to reload configuration: {}", e);
                         }
                     }
                 }
-                _ => {}
             }
         }
     });
-
-    Ok(())
 }
 
 #[cfg(not(feature = "hot-reload"))]
-async fn start_hot_reload(
-    _config_path: &PathBuf,
-    _rule_engine_swap: Arc<ArcSwap<RuleEngine>>,
-) -> anyhow::Result<()> {
+fn start_hot_reload(_config_path: &Path, _rule_engine_swap: Arc<ArcSwap<RuleEngine>>) {
     info!("Hot reload feature is not enabled");
-    Ok(())
 }
 
 #[cfg(test)]
@@ -193,10 +154,10 @@ mod tests {
         let mut file = File::create(&config_path).unwrap();
         writeln!(file, "server:\n  host: 127.0.0.1\n  port: 0\n  workers: 1\n  max_request_size: 1048576\nendpoints: []\ntelemetry:\n  enabled: false").unwrap();
 
-        let rule_engine = Arc::new(RuleEngine::new(vec![]));
+        let rule_engine = Arc::new(RuleEngine::new(&[]));
         let rule_engine_swap = Arc::new(ArcSwap::from(rule_engine));
 
-        let _ = start_hot_reload(&config_path, rule_engine_swap.clone()).await;
+        start_hot_reload(&config_path, rule_engine_swap.clone());
 
         // Give watcher some time to start
         tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;

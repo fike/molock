@@ -1,34 +1,5 @@
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-FileCopyrightText: 2026 Molock Team
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::config::{Endpoint, Response};
 use crate::rules::state::StateManager;
@@ -45,10 +16,17 @@ pub struct ResponseExecutor {
 }
 
 impl ResponseExecutor {
-    pub fn new(state_manager: Arc<StateManager>) -> Self {
+    /// Creates a new `ResponseExecutor`.
+    #[must_use]
+    pub const fn new(state_manager: Arc<StateManager>) -> Self {
         Self { state_manager }
     }
 
+    /// Executes the response for a matched endpoint.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no response can be selected or if delay parsing fails.
     pub async fn execute(
         &self,
         endpoint: &Endpoint,
@@ -62,29 +40,23 @@ impl ResponseExecutor {
         );
 
         let state_key = if endpoint.stateful {
-            let key = endpoint
-                .state_key
-                .as_deref()
-                .unwrap_or("client_ip")
-                .to_string();
+            let key = endpoint.state_key.as_deref().unwrap_or("client_ip");
 
-            match key.as_str() {
-                "client_ip" => context.client_ip.clone(),
-                _ => {
-                    let key_lower = key.to_lowercase();
-                    if let Some(value) = context.headers.get(&key_lower) {
-                        value.clone()
-                    } else {
-                        context.client_ip.clone()
-                    }
-                }
+            if key == "client_ip" {
+                context.client_ip.clone()
+            } else {
+                let key_lower = key.to_lowercase();
+                context
+                    .headers
+                    .get(&key_lower)
+                    .map_or_else(|| context.client_ip.clone(), Clone::clone)
             }
         } else {
-            "".to_string()
+            String::new()
         };
 
         if endpoint.stateful && !state_key.is_empty() {
-            self.state_manager.increment_count(&state_key);
+            let _ = self.state_manager.increment_count(&state_key);
         }
 
         let request_count = if endpoint.stateful && !state_key.is_empty() {
@@ -96,7 +68,7 @@ impl ResponseExecutor {
         let candidate_responses: Vec<&Response> = endpoint
             .responses
             .iter()
-            .filter(|r| self.evaluate_condition(r, context, request_count))
+            .filter(|r| Self::evaluate_condition(r, context, request_count))
             .collect();
 
         let selected_response = if candidate_responses.is_empty() {
@@ -108,16 +80,16 @@ impl ResponseExecutor {
         } else if candidate_responses.len() == 1 {
             candidate_responses[0]
         } else {
-            self.select_by_probability(&candidate_responses)?
+            Self::select_by_probability(&candidate_responses)?
         };
 
         let delay = if let Some(delay_config) = &selected_response.delay {
             let (min, max) = delay_config.parse_range()?;
             if min == max {
-                min.as_millis() as u64
+                u64::try_from(min.as_millis()).unwrap_or(u64::MAX)
             } else {
                 let mut rng = rand::thread_rng();
-                rng.gen_range(min.as_millis()..=max.as_millis()) as u64
+                u64::try_from(rng.gen_range(min.as_millis()..=max.as_millis())).unwrap_or(u64::MAX)
             }
         } else {
             0
@@ -131,7 +103,7 @@ impl ResponseExecutor {
         let body = selected_response
             .body
             .as_ref()
-            .map(|body_template| self.render_template(body_template, context, request_count));
+            .map(|body_template| Self::render_template(body_template, context, request_count));
 
         let mut headers = selected_response.headers.clone();
         headers.insert(
@@ -155,34 +127,21 @@ impl ResponseExecutor {
     }
 
     fn evaluate_condition(
-        &self,
         response: &Response,
         context: &ExecutionContext,
         request_count: u64,
     ) -> bool {
-        if let Some(condition) = &response.condition {
-            match self.evaluate_expression(condition, context, request_count) {
-                Ok(result) => result,
-                Err(e) => {
-                    tracing::warn!(
-                        condition = %condition,
-                        error = %e,
-                        "Failed to evaluate condition"
-                    );
-                    false
-                }
-            }
-        } else {
-            true
-        }
+        response
+            .condition
+            .as_ref()
+            .is_none_or(|condition| Self::evaluate_expression(condition, context, request_count))
     }
 
     fn evaluate_expression(
-        &self,
         expression: &str,
         _context: &ExecutionContext,
         request_count: u64,
-    ) -> anyhow::Result<bool> {
+    ) -> bool {
         // Simple expression evaluation
         // In a real implementation, this would use a proper expression evaluator
         let expr = expression.trim().to_lowercase();
@@ -193,12 +152,12 @@ impl ResponseExecutor {
             if parts.len() == 3 && parts[0] == "request_count" {
                 if let Ok(value) = parts[2].parse::<u64>() {
                     match parts[1] {
-                        ">" => return Ok(request_count > value),
-                        "<" => return Ok(request_count < value),
-                        ">=" => return Ok(request_count >= value),
-                        "<=" => return Ok(request_count <= value),
-                        "==" | "=" => return Ok(request_count == value),
-                        "!=" => return Ok(request_count != value),
+                        ">" => return request_count > value,
+                        "<" => return request_count < value,
+                        ">=" => return request_count >= value,
+                        "<=" => return request_count <= value,
+                        "==" | "=" => return request_count == value,
+                        "!=" => return request_count != value,
                         _ => {}
                     }
                 }
@@ -206,13 +165,10 @@ impl ResponseExecutor {
         }
 
         // Default to true for simple expressions
-        Ok(true)
+        true
     }
 
-    fn select_by_probability<'a>(
-        &self,
-        responses: &[&'a Response],
-    ) -> anyhow::Result<&'a Response> {
+    fn select_by_probability<'a>(responses: &[&'a Response]) -> anyhow::Result<&'a Response> {
         let total_probability: f64 = responses.iter().map(|r| r.probability.unwrap_or(0.0)).sum();
 
         if total_probability == 0.0 {
@@ -234,12 +190,8 @@ impl ResponseExecutor {
         Ok(responses.last().unwrap())
     }
 
-    fn render_template(
-        &self,
-        template: &str,
-        context: &ExecutionContext,
-        request_count: u64,
-    ) -> String {
+    #[allow(clippy::uninlined_format_args)]
+    fn render_template(template: &str, context: &ExecutionContext, request_count: u64) -> String {
         let mut result = template.to_string();
 
         result = result.replace("{{request_count}}", &request_count.to_string());
@@ -276,6 +228,7 @@ mod tests {
             path: "/test".to_string(),
             query: "".to_string(),
             headers: HashMap::new(),
+            body: None,
             client_ip: "127.0.0.1".to_string(),
             path_params: HashMap::new(),
         }
@@ -361,9 +314,6 @@ mod tests {
 
     #[test]
     fn test_evaluate_condition() {
-        let state_manager = Arc::new(StateManager::new());
-        let executor = ResponseExecutor::new(state_manager);
-
         let response = Response {
             status: 200,
             delay: None,
@@ -376,15 +326,14 @@ mod tests {
 
         let context = create_test_context();
 
-        assert!(!executor.evaluate_condition(&response, &context, 1));
-        assert!(executor.evaluate_condition(&response, &context, 3));
+        assert!(!ResponseExecutor::evaluate_condition(
+            &response, &context, 1
+        ));
+        assert!(ResponseExecutor::evaluate_condition(&response, &context, 3));
     }
 
     #[test]
     fn test_render_template() {
-        let state_manager = Arc::new(StateManager::new());
-        let executor = ResponseExecutor::new(state_manager);
-
         let mut context = create_test_context();
         context
             .path_params
@@ -392,7 +341,7 @@ mod tests {
         context.query = "name=John&age=30".to_string();
 
         let template = "User {{id}} ({{query.name}}) from {{client_ip}}";
-        let result = executor.render_template(template, &context, 1);
+        let result = ResponseExecutor::render_template(template, &context, 1);
 
         assert!(result.contains("123"));
         assert!(result.contains("John"));
@@ -401,14 +350,11 @@ mod tests {
 
     #[test]
     fn test_render_template_empty_query() {
-        let state_manager = Arc::new(StateManager::new());
-        let executor = ResponseExecutor::new(state_manager);
-
         let mut context = create_test_context();
         context.query = "".to_string();
 
         let template = "User {{query.name}}";
-        let result = executor.render_template(template, &context, 1);
+        let result = ResponseExecutor::render_template(template, &context, 1);
 
         assert_eq!(result, "User {{query.name}}");
     }
@@ -436,50 +382,59 @@ mod tests {
 
         // Test missing custom key falls back to client_ip
         context.headers.remove("x-user-id");
-        let result = executor.execute(&endpoint, &context).await.unwrap();
+        let _result = executor.execute(&endpoint, &context).await.unwrap();
         assert_eq!(state_manager.get_count("127.0.0.1"), 1);
     }
 
     #[test]
     fn test_evaluate_expression_operators() {
-        let state_manager = Arc::new(StateManager::new());
-        let executor = ResponseExecutor::new(state_manager);
         let context = create_test_context();
 
-        assert!(executor
-            .evaluate_expression("request_count < 5", &context, 3)
-            .unwrap());
-        assert!(executor
-            .evaluate_expression("request_count >= 3", &context, 3)
-            .unwrap());
-        assert!(executor
-            .evaluate_expression("request_count <= 3", &context, 3)
-            .unwrap());
-        assert!(executor
-            .evaluate_expression("request_count == 3", &context, 3)
-            .unwrap());
-        assert!(executor
-            .evaluate_expression("request_count = 3", &context, 3)
-            .unwrap());
-        assert!(executor
-            .evaluate_expression("request_count != 4", &context, 3)
-            .unwrap());
+        assert!(ResponseExecutor::evaluate_expression(
+            "request_count < 5",
+            &context,
+            3
+        ));
+        assert!(ResponseExecutor::evaluate_expression(
+            "request_count >= 3",
+            &context,
+            3
+        ));
+        assert!(ResponseExecutor::evaluate_expression(
+            "request_count <= 3",
+            &context,
+            3
+        ));
+        assert!(ResponseExecutor::evaluate_expression(
+            "request_count == 3",
+            &context,
+            3
+        ));
+        assert!(ResponseExecutor::evaluate_expression(
+            "request_count = 3",
+            &context,
+            3
+        ));
+        assert!(ResponseExecutor::evaluate_expression(
+            "request_count != 4",
+            &context,
+            3
+        ));
 
         // Invalid operator or format
-        assert!(executor
-            .evaluate_expression("request_count ?? 3", &context, 3)
-            .unwrap());
-        assert!(executor
-            .evaluate_expression("invalid", &context, 3)
-            .unwrap());
+        assert!(ResponseExecutor::evaluate_expression(
+            "request_count ?? 3",
+            &context,
+            3
+        ));
+        assert!(ResponseExecutor::evaluate_expression(
+            "invalid", &context, 3
+        ));
     }
 
     #[test]
     fn test_select_by_probability_no_probability() {
-        let state_manager = Arc::new(StateManager::new());
-        let executor = ResponseExecutor::new(state_manager);
-
-        let responses = vec![Response {
+        let response = Response {
             status: 200,
             delay: None,
             body: None,
@@ -487,10 +442,9 @@ mod tests {
             condition: None,
             probability: None,
             default: false,
-        }];
+        };
 
-        let refs: Vec<&Response> = responses.iter().collect();
-        let result = executor.select_by_probability(&refs);
+        let result = ResponseExecutor::select_by_probability(&[&response]);
         assert!(result.is_err());
     }
 

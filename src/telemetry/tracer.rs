@@ -1,18 +1,5 @@
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-FileCopyrightText: 2026 Molock Team
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::config::TelemetryConfig;
 use crate::telemetry::attributes;
@@ -48,12 +35,20 @@ impl opentelemetry::propagation::Extractor for ActixHeaderExtractor<'_> {
     }
 
     fn keys(&self) -> Vec<&str> {
-        self.0.keys().map(|k| k.as_str()).collect()
+        self.0
+            .keys()
+            .map(actix_web::http::header::HeaderName::as_str)
+            .collect()
     }
 }
 
+/// Initializes OpenTelemetry tracing.
+///
+/// # Errors
+///
+/// Returns an error if the tracer or logger providers cannot be built or initialized.
 #[cfg(feature = "otel")]
-pub async fn init_tracing(config: &TelemetryConfig) -> anyhow::Result<()> {
+pub fn init_tracing(config: &TelemetryConfig) -> anyhow::Result<()> {
     if !config.enabled {
         info!("Tracing is disabled");
         return Ok(());
@@ -68,7 +63,7 @@ pub async fn init_tracing(config: &TelemetryConfig) -> anyhow::Result<()> {
     let tracer_provider = build_tracer_provider(config, resource.clone())?;
     let logger_provider = build_logger_provider(config, resource)?;
 
-    init_global_settings(tracer_provider.clone());
+    init_global_settings(tracer_provider);
 
     setup_subscriber(config, &logger_provider);
 
@@ -92,25 +87,22 @@ fn build_tracer_provider(
     resource: opentelemetry_sdk::Resource,
 ) -> anyhow::Result<SdkTracerProvider> {
     let protocol = config.protocol.to_lowercase();
-    let exporter = match protocol.as_str() {
-        "http" => {
-            let endpoint = format_endpoint(&config.endpoint, "v1/traces");
-            opentelemetry_otlp::SpanExporter::builder()
-                .with_http()
-                .with_endpoint(endpoint)
-                .with_timeout(std::time::Duration::from_secs(config.timeout_seconds))
-                .build()
+    let exporter = if protocol == "http" {
+        let endpoint = format_endpoint(&config.endpoint, "v1/traces");
+        opentelemetry_otlp::SpanExporter::builder()
+            .with_http()
+            .with_endpoint(endpoint)
+            .with_timeout(std::time::Duration::from_secs(config.timeout_seconds))
+            .build()
+    } else {
+        if protocol != "grpc" {
+            warn!("Unknown protocol '{}', defaulting to gRPC", protocol);
         }
-        _ => {
-            if protocol != "grpc" {
-                warn!("Unknown protocol '{}', defaulting to gRPC", protocol);
-            }
-            opentelemetry_otlp::SpanExporter::builder()
-                .with_tonic()
-                .with_endpoint(&config.endpoint)
-                .with_timeout(std::time::Duration::from_secs(config.timeout_seconds))
-                .build()
-        }
+        opentelemetry_otlp::SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint(&config.endpoint)
+            .with_timeout(std::time::Duration::from_secs(config.timeout_seconds))
+            .build()
     }
     .map_err(|e| anyhow::anyhow!("OpenTelemetry span exporter build failed: {e}"))?;
 
@@ -129,20 +121,19 @@ fn build_logger_provider(
     resource: opentelemetry_sdk::Resource,
 ) -> anyhow::Result<SdkLoggerProvider> {
     let protocol = config.protocol.to_lowercase();
-    let exporter = match protocol.as_str() {
-        "http" => {
-            let endpoint = format_endpoint(&config.endpoint, "v1/logs");
-            opentelemetry_otlp::LogExporter::builder()
-                .with_http()
-                .with_endpoint(endpoint)
-                .with_timeout(std::time::Duration::from_secs(config.timeout_seconds))
-                .build()
-        }
-        _ => opentelemetry_otlp::LogExporter::builder()
+    let exporter = if protocol == "http" {
+        let endpoint = format_endpoint(&config.endpoint, "v1/logs");
+        opentelemetry_otlp::LogExporter::builder()
+            .with_http()
+            .with_endpoint(endpoint)
+            .with_timeout(std::time::Duration::from_secs(config.timeout_seconds))
+            .build()
+    } else {
+        opentelemetry_otlp::LogExporter::builder()
             .with_tonic()
             .with_endpoint(&config.endpoint)
             .with_timeout(std::time::Duration::from_secs(config.timeout_seconds))
-            .build(),
+            .build()
     }
     .map_err(|e| anyhow::anyhow!("OpenTelemetry log exporter build failed: {e}"))?;
 
@@ -193,8 +184,13 @@ fn setup_subscriber(config: &TelemetryConfig, logger_provider: &SdkLoggerProvide
     }
 }
 
+/// Initializes tracing when OpenTelemetry is disabled.
+///
+/// # Errors
+///
+/// This function is infallible but returns `Result` for API consistency.
 #[cfg(not(feature = "otel"))]
-pub async fn init_tracing(config: &TelemetryConfig) -> anyhow::Result<()> {
+pub fn init_tracing(config: &TelemetryConfig) -> anyhow::Result<()> {
     if !config.enabled {
         info!("Tracing is disabled");
         return Ok(());
@@ -220,7 +216,9 @@ pub async fn init_tracing(config: &TelemetryConfig) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn tracing_middleware() -> TracingMiddleware {
+/// Returns a new tracing middleware.
+#[must_use]
+pub const fn tracing_middleware() -> TracingMiddleware {
     TracingMiddleware
 }
 
@@ -317,6 +315,7 @@ where
 }
 
 #[cfg(feature = "otel")]
+#[allow(clippy::future_not_send)]
 async fn process_otel_request<S, B>(
     service: Rc<S>,
     req: ServiceRequest,
@@ -356,6 +355,7 @@ where
 }
 
 #[cfg(feature = "otel")]
+#[allow(clippy::future_not_send)]
 async fn process_fallback_request<S, B>(
     service: Rc<S>,
     req: ServiceRequest,
@@ -550,50 +550,60 @@ mod tests {
 
     #[tokio::test]
     async fn test_init_tracing_http() {
-        let mut config = TelemetryConfig::default();
-        config.protocol = "http".to_string();
-        config.endpoint = "http://localhost:4318".to_string();
+        let config = TelemetryConfig {
+            protocol: "http".to_string(),
+            endpoint: "http://localhost:4318".to_string(),
+            ..TelemetryConfig::default()
+        };
 
-        // This might fail to build exporter if OTel SDK is not properly set up in test env,
-        // but it should at least exercise the path.
-        let _ = init_tracing(&config).await;
+        let _ = init_tracing(&config);
     }
 
     #[tokio::test]
     async fn test_init_tracing_http_with_slash() {
-        let mut config = TelemetryConfig::default();
-        config.protocol = "http".to_string();
-        config.endpoint = "http://localhost:4318/".to_string();
-        let _ = init_tracing(&config).await;
+        let config = TelemetryConfig {
+            protocol: "http".to_string(),
+            endpoint: "http://localhost:4318/".to_string(),
+            ..TelemetryConfig::default()
+        };
+        let _ = init_tracing(&config);
     }
 
     #[tokio::test]
     async fn test_init_tracing_http_with_v1_traces() {
-        let mut config = TelemetryConfig::default();
-        config.protocol = "http".to_string();
-        config.endpoint = "http://localhost:4318/v1/traces".to_string();
-        let _ = init_tracing(&config).await;
+        let config = TelemetryConfig {
+            protocol: "http".to_string(),
+            endpoint: "http://localhost:4318/v1/traces".to_string(),
+            ..TelemetryConfig::default()
+        };
+        let _ = init_tracing(&config);
     }
 
     #[tokio::test]
     async fn test_init_tracing_unknown_protocol() {
-        let mut config = TelemetryConfig::default();
-        config.protocol = "unknown".to_string();
-        let _ = init_tracing(&config).await;
+        let config = TelemetryConfig {
+            protocol: "unknown".to_string(),
+            ..TelemetryConfig::default()
+        };
+        let _ = init_tracing(&config);
     }
 
     #[tokio::test]
     async fn test_init_tracing_disabled() {
-        let mut config = TelemetryConfig::default();
-        config.enabled = false;
-        let result = init_tracing(&config).await;
+        let config = TelemetryConfig {
+            enabled: false,
+            ..TelemetryConfig::default()
+        };
+        let result = init_tracing(&config);
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_init_tracing_json_log() {
-        let mut config = TelemetryConfig::default();
-        config.log_format = "json".to_string();
-        let _ = init_tracing(&config).await;
+        let config = TelemetryConfig {
+            log_format: "json".to_string(),
+            ..TelemetryConfig::default()
+        };
+        let _ = init_tracing(&config);
     }
 }

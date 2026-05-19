@@ -1,34 +1,5 @@
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-FileCopyrightText: 2026 Molock Team
+// SPDX-License-Identifier: Apache-2.0
 
 //! Direct OpenTelemetry API integration for HTTP tracing
 //!
@@ -45,6 +16,11 @@ use std::sync::RwLock;
 
 static TRACER_PROVIDER: RwLock<Option<Arc<SdkTracerProvider>>> = RwLock::new(None);
 
+/// Initialize the direct tracer provider.
+///
+/// # Panics
+///
+/// Panics if the internal `RWLock` is poisoned.
 pub fn init_direct_tracer(tracer_provider: Arc<SdkTracerProvider>) {
     let mut provider = TRACER_PROVIDER.write().unwrap();
     *provider = Some(tracer_provider);
@@ -60,6 +36,7 @@ fn get_tracer() -> Option<SdkTracer> {
 /// The `parent_cx` parameter allows linking this span to an upstream trace extracted
 /// from incoming request headers (W3C `traceparent`/`tracestate`). Pass
 /// `&Context::current()` when no parent context is available.
+#[must_use]
 pub fn create_http_server_span(
     name: &str,
     method: &str,
@@ -115,7 +92,7 @@ mod tests {
         let _guard = TEST_LOCK.lock().unwrap();
 
         let original_provider = {
-            let provider = TRACER_PROVIDER.write().unwrap();
+            let provider = TRACER_PROVIDER.read().unwrap();
             provider.clone()
         };
 
