@@ -1,34 +1,5 @@
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-FileCopyrightText: 2026 Molock Team
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
 use crate::rules::RuleEngine;
@@ -46,11 +17,16 @@ use tracing::info;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::{SwaggerUi, Url};
 
+/// Runs the Molock HTTP server.
+///
+/// # Errors
+///
+/// Returns an error if the server fails to bind to the specified address or if worker startup fails.
 pub async fn run_server(config: Config, rule_engine: Arc<RuleEngine>) -> anyhow::Result<Server> {
     let server_config = config.server.clone();
     let addr = format!("{}:{}", server_config.host, server_config.port);
 
-    info!("Starting server on {}", addr);
+    info!("Starting server on {addr}");
     info!("Server workers: {}", server_config.workers);
     info!("Max request size: {} bytes", server_config.max_request_size);
 
@@ -59,13 +35,13 @@ pub async fn run_server(config: Config, rule_engine: Arc<RuleEngine>) -> anyhow:
 
     let server = HttpServer::new(move || {
         let app_state = web::Data::new(AppState {
-            _config: config.clone(),
+            config: config.clone(),
             rule_engine: rule_engine.clone(),
         });
 
         App::new()
             .wrap(tracing_middleware())
-            .app_data(app_state.clone())
+            .app_data(app_state)
             .app_data(web::JsonConfig::default().limit(config.server.max_request_size))
             .service(web::resource("/health").to(crate::server::health_handler))
             .service(web::resource("/metrics").to(crate::server::metrics_handler))
@@ -90,7 +66,7 @@ async fn openapi_json_handler() -> impl Responder {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub _config: Config,
+    pub config: Config,
     pub rule_engine: Arc<RuleEngine>,
 }
 
@@ -102,37 +78,39 @@ mod tests {
 
     #[test]
     fn test_app_state() {
-        let mut config = Config::default();
-        config.endpoints = vec![Endpoint {
-            name: "Test".to_string(),
-            method: "GET".to_string(),
-            path: "/test".to_string(),
-            stateful: false,
-            state_key: None,
-            responses: vec![Response {
-                status: 200,
-                delay: None,
-                body: Some("OK".to_string()),
-                headers: HashMap::new(),
-                condition: None,
-                probability: None,
-                default: false,
+        let config = Config {
+            endpoints: vec![Endpoint {
+                name: "Test".to_string(),
+                method: "GET".to_string(),
+                path: "/test".to_string(),
+                stateful: false,
+                state_key: None,
+                responses: vec![Response {
+                    status: 200,
+                    delay: None,
+                    body: Some("OK".to_string()),
+                    headers: HashMap::new(),
+                    condition: None,
+                    probability: None,
+                    default: false,
+                }],
+                schema: None,
+                schema_file: None,
+                path_regex: None,
+                headers_regex: None,
+                query_regex: None,
             }],
-            schema: None,
-            schema_file: None,
-            path_regex: None,
-            headers_regex: None,
-            query_regex: None,
-        }];
+            ..Config::default()
+        };
 
-        let rule_engine = Arc::new(RuleEngine::new(config.endpoints.clone()));
+        let rule_engine = Arc::new(RuleEngine::new(&config.endpoints));
         let app_state = AppState {
-            _config: config.clone(),
+            config: config.clone(),
             rule_engine: rule_engine.clone(),
         };
 
-        assert_eq!(app_state._config.endpoints.len(), 1);
-        assert_eq!(app_state._config.endpoints[0].name, "Test");
+        assert_eq!(app_state.config.endpoints.len(), 1);
+        assert_eq!(app_state.config.endpoints[0].name, "Test");
     }
 
     #[actix_web::test]

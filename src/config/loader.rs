@@ -1,34 +1,5 @@
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-FileCopyrightText: 2026 Molock Team
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::config::types::Config;
 use anyhow::Context;
@@ -39,13 +10,23 @@ use std::path::Path;
 pub struct ConfigLoader;
 
 impl ConfigLoader {
+    /// Loads configuration from a YAML file.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be read, or if the YAML content is invalid or fails validation.
     pub fn from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Config> {
         let content = fs::read_to_string(&path)
-            .with_context(|| format!("Failed to read config file: {:?}", path.as_ref()))?;
+            .with_context(|| format!("Failed to read config file: {}", path.as_ref().display()))?;
 
         Self::parse_str(&content)
     }
 
+    /// Parses configuration from a YAML string.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the YAML content is invalid or fails validation.
     pub fn parse_str(content: &str) -> anyhow::Result<Config> {
         let config: Config =
             serde_yaml::from_str(content).with_context(|| "Failed to parse YAML configuration")?;
@@ -106,15 +87,18 @@ impl ConfigLoader {
                 anyhow::bail!("Telemetry endpoint must have a host");
             }
         } else {
-            anyhow::bail!("Invalid telemetry endpoint URL format: {}", config.endpoint);
+            anyhow::bail!(
+                "Invalid telemetry endpoint URL format: {endpoint}",
+                endpoint = config.endpoint
+            );
         }
 
         // Validate protocol
         let protocol = config.protocol.to_lowercase();
         if protocol != "http" && protocol != "grpc" {
             anyhow::bail!(
-                "Telemetry protocol must be 'http' or 'grpc', got '{}'",
-                config.protocol
+                "Telemetry protocol must be 'http' or 'grpc', got '{protocol}'",
+                protocol = config.protocol
             );
         }
 
@@ -153,9 +137,7 @@ impl ConfigLoader {
             anyhow::bail!("Endpoint must have at least one response");
         }
 
-        let default_responses: Vec<_> = endpoint.responses.iter().filter(|r| r.default).collect();
-
-        if default_responses.len() > 1 {
+        if endpoint.responses.iter().filter(|r| r.default).count() > 1 {
             anyhow::bail!("Endpoint can have at most one default response");
         }
 
@@ -168,7 +150,10 @@ impl ConfigLoader {
 
     fn validate_response(response: &crate::config::types::Response) -> anyhow::Result<()> {
         if response.status < 100 || response.status >= 600 {
-            anyhow::bail!("Invalid HTTP status code: {}", response.status);
+            anyhow::bail!(
+                "Invalid HTTP status code: {status}",
+                status = response.status
+            );
         }
 
         if let Some(probability) = response.probability {
@@ -179,7 +164,7 @@ impl ConfigLoader {
 
         if let Some(delay) = &response.delay {
             if let Err(e) = delay.parse_duration() {
-                anyhow::bail!("Invalid delay format: {}", e);
+                anyhow::bail!("Invalid delay format: {e}");
             }
         }
 
@@ -560,17 +545,20 @@ endpoints: []
 
     #[test]
     fn test_direct_telemetry_validation() {
-        let mut config = crate::config::types::TelemetryConfig::default();
-        config.enabled = true;
+        let config_base = crate::config::types::TelemetryConfig {
+            enabled: true,
+            ..Default::default()
+        };
 
+        let mut config = config_base.clone();
         config.timeout_seconds = 0;
         assert!(ConfigLoader::validate_telemetry_config(&config).is_err());
-        config.timeout_seconds = 30;
 
+        config = config_base.clone();
         config.export_batch_size = 0;
         assert!(ConfigLoader::validate_telemetry_config(&config).is_err());
-        config.export_batch_size = 512;
 
+        config = config_base.clone();
         config.export_timeout_millis = 0;
         assert!(ConfigLoader::validate_telemetry_config(&config).is_err());
     }

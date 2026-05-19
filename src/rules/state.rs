@@ -1,34 +1,5 @@
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-FileCopyrightText: 2026 Molock Team
+// SPDX-License-Identifier: Apache-2.0
 
 use dashmap::DashMap;
 use std::sync::Arc;
@@ -40,16 +11,21 @@ pub struct StateManager {
     ttl: Duration,
 }
 
+#[derive(Debug, Clone)]
 struct CounterState {
     count: u64,
     last_updated: Instant,
 }
 
 impl StateManager {
+    /// Creates a new `StateManager` with a 1-hour TTL.
+    #[must_use]
     pub fn new() -> Self {
-        Self::with_ttl(Duration::from_secs(3600)) // 1 hour default TTL
+        Self::with_ttl(Duration::from_hours(1))
     }
 
+    /// Creates a new `StateManager` with a custom TTL.
+    #[must_use]
     pub fn with_ttl(ttl: Duration) -> Self {
         Self {
             counters: Arc::new(DashMap::new()),
@@ -57,6 +33,8 @@ impl StateManager {
         }
     }
 
+    /// Increments the request count for a given key.
+    #[must_use]
     pub fn increment_count(&self, key: &str) -> u64 {
         self.cleanup_expired();
 
@@ -73,12 +51,15 @@ impl StateManager {
         entry.count
     }
 
+    /// Returns the request count for a given key.
+    #[must_use]
     pub fn get_count(&self, key: &str) -> u64 {
         self.cleanup_expired();
 
-        self.counters.get(key).map(|entry| entry.count).unwrap_or(0)
+        self.counters.get(key).map_or(0, |entry| entry.count)
     }
 
+    /// Removes expired entries from the state.
     pub fn cleanup_expired(&self) {
         let now = Instant::now();
         let expired_keys: Vec<String> = self
@@ -110,32 +91,17 @@ mod tests {
         let manager = StateManager::new();
 
         assert_eq!(manager.get_count("test"), 0);
-
         assert_eq!(manager.increment_count("test"), 1);
-        assert_eq!(manager.get_count("test"), 1);
-
         assert_eq!(manager.increment_count("test"), 2);
         assert_eq!(manager.get_count("test"), 2);
-    }
-
-    #[test]
-    fn test_multiple_keys() {
-        let manager = StateManager::new();
-
-        assert_eq!(manager.increment_count("key1"), 1);
-        assert_eq!(manager.increment_count("key2"), 1);
-        assert_eq!(manager.increment_count("key1"), 2);
-
-        assert_eq!(manager.get_count("key1"), 2);
-        assert_eq!(manager.get_count("key2"), 1);
     }
 
     #[test]
     fn test_cleanup_expired() {
         let manager = StateManager::with_ttl(Duration::from_millis(100));
 
-        manager.increment_count("test1");
-        manager.increment_count("test2");
+        let _ = manager.increment_count("test1");
+        let _ = manager.increment_count("test2");
 
         assert_eq!(manager.get_count("test1"), 1);
         assert_eq!(manager.get_count("test2"), 1);
@@ -149,18 +115,27 @@ mod tests {
     }
 
     #[test]
-    fn test_concurrent_access() {
-        use std::sync::Arc;
-        use std::thread;
+    fn test_multiple_keys() {
+        let manager = StateManager::new();
 
-        let manager = Arc::new(StateManager::new());
-        let mut handles = vec![];
+        let _ = manager.increment_count("key1");
+        let _ = manager.increment_count("key2");
+        let _ = manager.increment_count("key1");
+
+        assert_eq!(manager.get_count("key1"), 2);
+        assert_eq!(manager.get_count("key2"), 1);
+    }
+
+    #[test]
+    fn test_concurrent_access() {
+        let manager = StateManager::new();
+        let mut handles = Vec::new();
 
         for i in 0..10 {
             let manager = manager.clone();
             handles.push(thread::spawn(move || {
                 for _ in 0..100 {
-                    manager.increment_count(&format!("key{}", i % 3));
+                    let _ = manager.increment_count(&format!("key{}", i % 3));
                 }
             }));
         }

@@ -6,15 +6,17 @@ use tokio::time::{timeout, Duration};
 
 #[tokio::test]
 async fn test_server_startup_and_shutdown() {
-    let mut config = Config::default();
-    config.server = ServerConfig {
-        host: "127.0.0.1".to_string(),
-        port: 0,
-        workers: 1,
-        max_request_size: 1024 * 1024,
+    let config = Config {
+        server: ServerConfig {
+            host: "127.0.0.1".to_string(),
+            port: 0,
+            workers: 1,
+            max_request_size: 1024 * 1024,
+        },
+        ..Config::default()
     };
 
-    let rule_engine = Arc::new(RuleEngine::new(config.endpoints.clone()));
+    let rule_engine = Arc::new(RuleEngine::new(&config.endpoints));
 
     let server = run_server(config, rule_engine)
         .await

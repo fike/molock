@@ -1,34 +1,7 @@
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-FileCopyrightText: 2026 Molock Team
+// SPDX-License-Identifier: Apache-2.0
 
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+#![allow(clippy::needless_for_each)]
 
 use serde::Serialize;
 use utoipa::OpenApi;
@@ -38,62 +11,36 @@ use utoipa::ToSchema;
 #[openapi(
     info(
         title = "Molock API",
-        description = "High-performance mock server API for CI/CD pipelines and testing",
         version = "0.1.0",
-        contact(
-            name = "Molock Team",
-            url = "https://github.com/your-org/molock"
-        ),
-        license(
-            name = "MIT OR Apache-2.0",
-            url = "https://github.com/your-org/molock/blob/main/LICENSE"
-        )
+        description = "High-performance mock server for CI/CD pipelines and testing"
     ),
-    paths(
-        super::handlers::health_handler,
-        super::handlers::metrics_handler,
-        request_handler_path
-    ),
-    components(
-        schemas(
-            HealthResponse,
-            MetricsResponse,
-            ErrorResponse
-        )
-    ),
-    tags(
-        (name = "System", description = "System endpoints"),
-        (name = "Mock", description = "Mock endpoint handlers")
-    )
+    paths(request_handler_path),
+    components(schemas(HealthResponse, ErrorResponse))
 )]
 pub struct ApiDoc;
 
+/// A placeholder function to provide `OpenAPI` documentation for the catch-all request handler.
 #[utoipa::path(
     get,
-    path = "/{path:.*}",
-    tag = "Mock",
+    path = "/{any:.*}",
     responses(
         (status = 200, description = "Mock response - returns configured mock response"),
         (status = 500, description = "Internal server error", body = ErrorResponse)
     )
 )]
 #[allow(dead_code)]
-pub fn request_handler_path() {}
+pub const fn request_handler_path() {}
 
 #[derive(ToSchema, Serialize)]
 pub struct HealthResponse {
     #[schema(example = "healthy")]
     pub status: String,
-    #[schema(example = "molock")]
-    pub service: String,
-    #[schema(example = "2026-01-01T00:00:00Z")]
-    pub timestamp: String,
 }
 
 #[derive(ToSchema, Serialize)]
 pub struct MetricsResponse {
-    #[schema(example = "# Metrics endpoint - use OpenTelemetry metrics instead")]
-    pub message: String,
+    #[schema(example = "# HELP http_server_request_count ...")]
+    pub metrics: String,
 }
 
 #[derive(ToSchema, Serialize)]

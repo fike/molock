@@ -1,34 +1,5 @@
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-FileCopyrightText: 2026 Molock Team
+// SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -53,11 +24,11 @@ pub struct ServerConfig {
     pub max_request_size: usize,
 }
 
-fn default_port() -> u16 {
+const fn default_port() -> u16 {
     8080
 }
 
-fn default_workers() -> usize {
+const fn default_workers() -> usize {
     4
 }
 
@@ -65,7 +36,7 @@ fn default_host() -> String {
     "0.0.0.0".to_string()
 }
 
-fn default_max_request_size() -> usize {
+const fn default_max_request_size() -> usize {
     10 * 1024 * 1024 // 10MB
 }
 
@@ -95,7 +66,7 @@ pub struct TelemetryConfig {
     pub export_timeout_millis: u64,
 }
 
-fn default_enabled() -> bool {
+const fn default_enabled() -> bool {
     true
 }
 
@@ -111,7 +82,7 @@ fn default_protocol() -> String {
     "grpc".to_string()
 }
 
-fn default_sampling_rate() -> f64 {
+const fn default_sampling_rate() -> f64 {
     1.0
 }
 
@@ -127,15 +98,15 @@ fn default_service_version() -> String {
     "0.1.0".to_string()
 }
 
-fn default_timeout_seconds() -> u64 {
+const fn default_timeout_seconds() -> u64 {
     30
 }
 
-fn default_export_batch_size() -> usize {
+const fn default_export_batch_size() -> usize {
     512
 }
 
-fn default_export_timeout_millis() -> u64 {
+const fn default_export_timeout_millis() -> u64 {
     30000
 }
 
@@ -186,13 +157,18 @@ pub enum Delay {
 }
 
 impl Delay {
+    /// Parses the delay into a `Duration`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the delay format is invalid or if the range is logically incorrect.
     pub fn parse_duration(&self) -> anyhow::Result<Duration> {
         match self {
-            Delay::Fixed(delay_str) => parse_duration_str(delay_str),
-            Delay::Range(range_str) => {
+            Self::Fixed(delay_str) => parse_duration_str(delay_str),
+            Self::Range(range_str) => {
                 let parts: Vec<&str> = range_str.split('-').collect();
                 if parts.len() != 2 {
-                    anyhow::bail!("Invalid delay range format: {}", range_str);
+                    anyhow::bail!("Invalid delay range format: {range_str}");
                 }
                 let min = parse_duration_str(parts[0])?;
                 let max = parse_duration_str(parts[1])?;
@@ -204,16 +180,21 @@ impl Delay {
         }
     }
 
+    /// Parses the delay into a range of `Duration`s.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the delay format is invalid or if the range is logically incorrect.
     pub fn parse_range(&self) -> anyhow::Result<(Duration, Duration)> {
         match self {
-            Delay::Fixed(delay_str) => {
+            Self::Fixed(delay_str) => {
                 let duration = parse_duration_str(delay_str)?;
                 Ok((duration, duration))
             }
-            Delay::Range(range_str) => {
+            Self::Range(range_str) => {
                 let parts: Vec<&str> = range_str.split('-').collect();
                 if parts.len() != 2 {
-                    anyhow::bail!("Invalid delay range format: {}", range_str);
+                    anyhow::bail!("Invalid delay range format: {range_str}");
                 }
                 let min = parse_duration_str(parts[0])?;
                 let max = parse_duration_str(parts[1])?;
@@ -231,15 +212,15 @@ fn parse_duration_str(duration_str: &str) -> anyhow::Result<Duration> {
     if let Some(stripped) = duration_str.strip_suffix("ms") {
         let ms = stripped
             .parse::<u64>()
-            .map_err(|e| anyhow::anyhow!("Invalid milliseconds: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Invalid milliseconds: {e}"))?;
         Ok(Duration::from_millis(ms))
     } else if let Some(stripped) = duration_str.strip_suffix('s') {
         let secs = stripped
             .parse::<u64>()
-            .map_err(|e| anyhow::anyhow!("Invalid seconds: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Invalid seconds: {e}"))?;
         Ok(Duration::from_secs(secs))
     } else {
-        anyhow::bail!("Invalid duration format: {}", duration_str);
+        anyhow::bail!("Invalid duration format: {duration_str}");
     }
 }
 
@@ -307,7 +288,7 @@ mod tests {
         let config = Config::default();
         assert_eq!(config.server.port, 8080);
         assert_eq!(config.server.workers, 4);
-        assert_eq!(config.telemetry.enabled, true);
+        assert!(config.telemetry.enabled);
         assert_eq!(config.telemetry.log_level, "info");
     }
 

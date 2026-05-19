@@ -1,34 +1,5 @@
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Copyright 2026 Molock Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-FileCopyrightText: 2026 Molock Team
+// SPDX-License-Identifier: Apache-2.0
 
 //! OpenTelemetry semantic convention constants for the Molock project
 //!
@@ -36,8 +7,8 @@
 //! following the OpenTelemetry semantic conventions v1.26.0.
 //!
 //! References:
-//! - https://opentelemetry.io/docs/specs/semconv/http/http-spans/
-//! - https://opentelemetry.io/docs/specs/semconv/attributes-registry/
+//! - <https://opentelemetry.io/docs/specs/semconv/http/http-spans/>
+//! - <https://opentelemetry.io/docs/specs/semconv/attributes-registry/>
 
 /// HTTP semantic conventions
 pub mod http {
@@ -47,7 +18,7 @@ pub mod http {
     /// HTTP route (matched route)
     pub const ROUTE: &str = "http.route";
 
-    /// Full HTTP request target in the form "scheme://host[:port]/path?query[#fragment]"
+    /// Full HTTP request target in the form `<scheme://host[:port]/path?query[#fragment]>`
     pub const TARGET: &str = "http.target";
 
     /// HTTP response status code
@@ -110,39 +81,45 @@ pub mod network {
     pub const PEER_PORT: &str = "network.peer.port";
 }
 
-/// Helper functions for creating OpenTelemetry KeyValue pairs with semantic conventions
+/// Helper functions for creating OpenTelemetry `KeyValue` pairs with semantic conventions
 pub mod kv {
     use opentelemetry::KeyValue;
 
     use super::http;
 
-    /// Create a KeyValue for HTTP method
+    /// Create a `KeyValue` for HTTP method
+    #[must_use]
     pub fn http_method(method: impl Into<String>) -> KeyValue {
         KeyValue::new(http::METHOD, method.into())
     }
 
-    /// Create a KeyValue for HTTP route
+    /// Create a `KeyValue` for HTTP route
+    #[must_use]
     pub fn http_route(route: impl Into<String>) -> KeyValue {
         KeyValue::new(http::ROUTE, route.into())
     }
 
-    /// Create a KeyValue for HTTP target
+    /// Create a `KeyValue` for HTTP target
+    #[must_use]
     pub fn http_target(target: impl Into<String>) -> KeyValue {
         KeyValue::new(http::TARGET, target.into())
     }
 
-    /// Create a KeyValue for HTTP response status code
+    /// Create a `KeyValue` for HTTP response status code
+    #[must_use]
     pub fn http_response_status_code(status: u16) -> KeyValue {
-        KeyValue::new(http::RESPONSE_STATUS_CODE, status as i64)
+        KeyValue::new(http::RESPONSE_STATUS_CODE, i64::from(status))
     }
 
-    /// Create a KeyValue for span kind (kept for reference; prefer `SpanKind` on the builder).
+    /// Create a `KeyValue` for span kind (kept for reference; prefer `SpanKind` on the builder).
+    #[must_use]
     #[allow(dead_code)]
     pub fn span_kind(kind: impl Into<String>) -> KeyValue {
         KeyValue::new(super::span::KIND, kind.into())
     }
 
-    /// Create a KeyValue for error type
+    /// Create a `KeyValue` for error type
+    #[must_use]
     pub fn error_type(error_type: impl Into<String>) -> KeyValue {
         KeyValue::new(super::error::TYPE, error_type.into())
     }
