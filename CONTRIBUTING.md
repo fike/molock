@@ -33,37 +33,116 @@ Molock strictly follows **Test-Driven Development (TDD)**. No feature should be 
 
 ### The Red-Green-Refactor Cycle
 
-1.  **Red**: Write a test that fails (or a benchmark that shows a bottleneck).
+1.  **Red**: Write a test that fails (e.g., in `tests/integration_test.rs` or a new unit test).
 2.  **Green**: Write the minimum amount of code to make the test pass.
 3.  **Refactor**: Clean up the code while ensuring the tests remain green.
 
-Run all tests frequently:
+When testing features that involve observability, ensure you use the `--features otel` flag.
 
 ```bash
-cargo test
+cargo test --features otel
 ```
 
 ## Quality Standards
 
 We maintain a "Zero Warning" policy. Your Pull Request will not be accepted if it contains lint warnings or fails quality gates.
 
-- **Clippy**: Must pass without any warnings.
-  ```bash
-  cargo clippy --all-targets --all-features -- -D warnings
-  ```
+### Local Verification
+
+Before pushing your changes, run the following commands to ensure everything is in order:
+
 - **Formatting**: Must adhere to standard Rust formatting.
   ```bash
   cargo fmt -- --check
   ```
-- **Test Coverage**: We maintain a minimum of **80% line and branch coverage**. Use `cargo tarpaulin` (if installed) to verify coverage.
+- **Clippy**: Must pass without any warnings.
+  ```bash
+  cargo clippy --all-targets --all-features -- -D warnings
+  ```
+- **Tests**: Run unit and integration tests.
+  ```bash
+  cargo test --all-features
+  ```
+- **Test Coverage**: We maintain a minimum of **80% line and branch coverage**.
+  ```bash
+  cargo tarpaulin --all-features --ignore-tests
+  ```
+
+### Pre-commit Hooks
+
+We use `pre-commit` to automate these checks. To set it up:
+
+1.  **Install pre-commit**: `pip install pre-commit`
+2.  **Install the hooks**: `pre-commit install`
+
+The hooks will run formatting, clippy, and our custom `find_code_smells.sh` script (which includes pedantic and nursery lints) on every commit.
+
+### Integration Testing & Observability
+
+Integration tests verify the end-to-end behavior of Molock, including its interaction with the observability stack (OTel collector, Jaeger, Prometheus).
+
+1.  **Start the stack**:
+    ```bash
+    docker-compose -f deployment/docker-compose.yml up -d
+    ```
+2.  **Run integration tests**:
+    ```bash
+    cargo test --features otel --test integration_test
+    ```
+3.  **Validate Observability**:
+    Use the provided script to verify that spans and metrics are correctly reaching the collector:
+    ```bash
+    ./tests/validate_observability.sh
+    ```
+
+### Security and Auditing
+
+- **Dependency Audit**: Run `cargo audit` to check for known vulnerabilities in dependencies.
+- **Secrets Detection**: We use `trufflehog` in CI to prevent accidental commits of secrets.
+- **SLSA**: We follow SLSA (Supply-chain Levels for Software Artifacts) guidelines to ensure the integrity of our builds.
 
 ## Task Management
 
 We use **beads (bd)** for internal task tracking.
 
-1.  **Find work**: Run `bd ready` to see available tasks.
-2.  **Claim a task**: Run `bd update <id> --claim`.
-3.  **Complete a task**: When your work is finished, run `bd close <id>`.
+1.  **Understand the workflow**: Run `bd prime` to see the full workflow context and available commands.
+2.  **Find work**: Run `bd ready` to see available tasks.
+3.  **Claim a task**: Run `bd update <id> --claim`.
+4.  **Complete a task**: When your work is finished, run `bd close <id>`.
+
+## Coding Conventions
+
+### Error Handling
+
+We follow a strict separation between application and library errors:
+- **Application Logic**: Use `anyhow` for high-level error context and propagation.
+- **Library/Core Logic**: Use `thiserror` to define structured, domain-specific error types.
+
+Always provide meaningful context when propagating errors:
+```rust
+use anyhow::Context;
+let config = ConfigLoader::from_file(&path).with_context(|| "Failed to load configuration")?;
+```
+
+### Observability (OpenTelemetry)
+
+Every new feature or endpoint must be observable.
+- **Spans**: Wrap significant operations in `tracing::span!`.
+- **Logs**: Use `tracing` macros (`info!`, `warn!`, `error!`, `debug!`) for structured logging.
+- **Metrics**: Register and update relevant metrics (e.g., request counters, latency histograms) in `src/telemetry/metrics.rs`.
+
+### Performance
+
+- **Zero-Allocation**: Avoid unnecessary heap allocations in the hot path (request matching and response generation).
+- **Async/Await**: Use non-blocking I/O and avoid holding mutexes across `.await` points.
+
+## Session Completion
+
+When ending a work session, you MUST:
+1.  **File issues** for any remaining work.
+2.  **Run quality gates** (tests, linter, coverage).
+3.  **Update issue status** in `bd`.
+4.  **Push to remote**: Ensure your branch is pushed and up to date with origin.
 
 ## Branch and Commit Protocol
 
