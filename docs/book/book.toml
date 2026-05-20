@@ -1,0 +1,10 @@
+[book]
+authors = ["Molock Team"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Molock User Guide"
+
+[output.html]
+git-repository-url = "https://github.com/fike/molock"
+edit-url-template = "https://github.com/fike/molock/edit/main/docs/book/{path}"
