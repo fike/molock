@@ -2,7 +2,7 @@
 
 Molock is a production-ready mock server designed for high-throughput environments, CI/CD pipelines, and stress testing. Built in Rust with Actix-web, it provides configurable and observable mock endpoints with native OpenTelemetry integration.
 
-[![SLSA 2](https://slsa.dev/images/level-2-badge.svg)](https://slsa.dev/level-2)
+[![SLSA 2](https://img.shields.io/badge/SLSA-2-yellowgreen)](https://slsa.dev/spec/v1.0/levels)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## 🏛️ Core Pillars
