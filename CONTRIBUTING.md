@@ -146,8 +146,10 @@ When ending a work session, you MUST:
 
 ## Branch and Commit Protocol
 
-- **No Direct Commits to `main`**: All changes must go through a feature branch and a Pull Request.
-- **Branch Naming**: Use descriptive names like `feature/your-feature-name` or `fix/issue-description`.
+> [!CAUTION]
+> **No Direct Commits to `main`**: Direct commits or pushes to the `main` branch are strictly prohibited and will be blocked by branch protection rules. All changes must go through a feature branch and a Pull Request.
+
+- **Feature Branches**: Use descriptive names like `feature/your-feature-name` or `fix/issue-description`.
 - **Conventional Commits**: We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for our commit messages (e.g., `feat: add regex matching`, `fix: resolve memory leak in tracer`).
 
 ## Pull Request Process
