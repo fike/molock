@@ -149,7 +149,7 @@ We follow strict TDD principles. Please read [CONTRIBUTING.md](CONTRIBUTING.md) 
 
 - **ADRs**: See [docs/adr/](docs/adr/) for architectural decisions.
 - **API Docs**: API documentation is available on [docs.rs/molock](https://docs.rs/molock).
-- **User Guide**: An extended manual is being developed at [fike.github.io/molock](https://fike.github.io/molock).
+- **User Guide**: Detailed documentation and tutorials are available at [https://fike.github.io/molock/](https://fike.github.io/molock/).
 
 ## ⚖️ License
 
