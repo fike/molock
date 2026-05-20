@@ -1,7 +1,6 @@
 # Compiled binaries and build artifacts
 /target/
 **/*.rs.bk
-Cargo.lock
 
 # Debug symbols
 *.dSYM/
@@ -107,6 +106,9 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+
+# mdBook build output
+/docs/book/book/
 
 # Gemini CLI
 .gemini/
