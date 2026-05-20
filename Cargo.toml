@@ -1,6 +1,6 @@
 [package]
 name = "molock"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "High-performance mock server for CI/CD pipelines and testing"
 authors = ["Molock Team"]
@@ -9,6 +9,24 @@ repository = "https://github.com/fike/molock"
 readme = "README.md"
 keywords = ["mock-server", "testing", "http", "actix-web", "opentelemetry"]
 categories = ["web-programming::http-server", "development-tools::testing"]
+exclude = [
+    "/.agents/*",
+    "/.beads/*",
+    "/.claude/*",
+    "/.cursorrules",
+    "/.pre-commit-config.yaml",
+    "/.trufflehog-exclude.txt",
+    "/benchmarks/*",
+    "/deployment/*",
+    "/docs/book/book/*",
+    "/tests/*",
+    "/tarpaulin-report.html",
+    "/Makefile",
+    "AGENTS.md",
+    "BENCHMARK-DOCKER.md",
+    "BENCHMARKING.md",
+    "ROADMAP.md"
+]
 
 [features]
 default = ["otel"]
