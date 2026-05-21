@@ -36,6 +36,7 @@ graph TD
 - **High Performance**: Built for speed and stability under high concurrency.
 - **Dynamic Rules**: Match requests by Method, Path (with params), Headers, Query, and Body.
 - **Response Control**: Failure injection (probability), fixed/random delays, and custom headers.
+- **Resilience Testing**: Native support for simulating flaky services and retry patterns using stateful rules.
 - **Stateful Logic**: Per-client state counters for simulating retry patterns.
 - **Hot Reload**: Automatic configuration reloading without server restart.
 - **Docker Ready**: Optimized container images for easy deployment.
