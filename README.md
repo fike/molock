@@ -39,7 +39,7 @@ graph TD
 - **Resilience Testing**: Native support for simulating flaky services and retry patterns using stateful rules.
 - **Stateful Logic**: Per-client state counters for simulating retry patterns.
 - **Hot Reload**: Automatic configuration reloading without server restart.
-- **Docker Ready**: Optimized container images for easy deployment.
+- **Docker & Helm Ready**: Optimized container images and Helm Charts for Kubernetes deployment.
 
 ## 🚀 Quick Start
 
@@ -57,6 +57,14 @@ cd molock
 # Build and run
 make build
 make run
+```
+
+### Kubernetes Deployment (Helm)
+
+If you have a Kubernetes cluster, you can deploy Molock using the provided Helm chart:
+
+```bash
+helm install my-molock ./deployment/molock
 ```
 
 ### Immediate Usage
