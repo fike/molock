@@ -1,0 +1,62 @@
+# Example: Error Injection and Resilience Testing
+# This configuration demonstrates how to use Molock to test client resilience
+# through probabilistic failures and stateful retry patterns.
+
+server:
+  port: 8080
+  workers: 4
+
+endpoints:
+  # Scenario 1: Probabilistic Failure (Chaos Testing)
+  # 10% of requests will return 503 Service Unavailable
+  - name: "Probabilistic Failure"
+    method: GET
+    path: "/api/chaos"
+    responses:
+      - status: 200
+        probability: 0.9
+        body: '{"status": "success", "message": "Standard response"}'
+      - status: 503
+        probability: 0.1
+        body: '{"error": "Service Unavailable", "type": "chaos_injection"}'
+
+  # Scenario 2: Stateful Retries (Simulating Flaky Service)
+  # Fails with 500 for the first 2 attempts from the same client IP,
+  # then succeeds.
+  - name: "Flaky Service"
+    method: GET
+    path: "/api/flaky"
+    stateful: true
+    responses:
+      - status: 500
+        condition: "request_count <= 2"
+        body: '{"error": "Internal Server Error", "attempt": {{request_count}}}'
+      - status: 200
+        condition: "request_count > 2"
+        body: '{"status": "success", "message": "Recovered after {{request_count}} attempts"}'
+
+  # Scenario 3: Latency & Error Combination
+  # Returns a 504 Gateway Timeout with random latency between 1s and 3s
+  - name: "Slow Timeout"
+    method: POST
+    path: "/api/timeout"
+    responses:
+      - status: 504
+        delay: 1s-3s
+        body: '{"error": "Gateway Timeout", "latency": "random"}'
+
+  # Scenario 4: Rate Limiting Simulation
+  # Returns 429 Too Many Requests after 5 requests
+  - name: "Rate Limit Simulation"
+    method: GET
+    path: "/api/limited"
+    stateful: true
+    responses:
+      - status: 200
+        condition: "request_count <= 5"
+        body: '{"status": "ok", "remaining": {{5 - request_count}}}'
+      - status: 429
+        condition: "request_count > 5"
+        headers:
+          Retry-After: "60"
+        body: '{"error": "Too Many Requests", "limit": 5}'

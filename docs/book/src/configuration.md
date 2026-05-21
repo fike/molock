@@ -64,3 +64,62 @@ Molock matches incoming requests based on:
         condition: "id == 'unknown'"
         body: '{"error": "User not found"}'
 ```
+
+## Error Injection and Resilience Testing
+
+Molock is designed to help developers test how their applications handle failures. You can inject errors using probabilistic or stateful rules.
+
+### Probabilistic Failures (Chaos Engineering)
+
+Inject failures randomly to test circuit breakers and error handling logic.
+
+```yaml
+  - name: "Probabilistic Error"
+    method: GET
+    path: "/api/unstable"
+    responses:
+      - status: 200
+        probability: 0.9
+        body: '{"status": "ok"}'
+      - status: 503
+        probability: 0.1
+        body: '{"error": "Service Unavailable"}'
+```
+
+### Stateful Failure Patterns (Retry Testing)
+
+Simulate flaky services that fail initially but succeed upon retry by using `stateful: true` and the `request_count` variable.
+
+```yaml
+  - name: "Flaky Service"
+    method: GET
+    path: "/api/retry"
+    stateful: true
+    responses:
+      - status: 500
+        condition: "request_count <= 2"
+        body: '{"error": "Temporary Failure", "attempt": {{request_count}}}'
+      - status: 200
+        condition: "request_count > 2"
+        body: '{"status": "Success", "after": "{{request_count}} attempts"}'
+```
+
+### Simulating Rate Limits
+
+You can simulate API rate limits (HTTP 429) using stateful counters.
+
+```yaml
+  - name: "Rate Limiter"
+    method: GET
+    path: "/api/limited"
+    stateful: true
+    responses:
+      - status: 200
+        condition: "request_count <= 100"
+        body: '{"data": "some results"}'
+      - status: 429
+        condition: "request_count > 100"
+        headers:
+          Retry-After: "3600"
+        body: '{"error": "Rate limit exceeded"}'
+```
