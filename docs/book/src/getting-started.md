@@ -25,6 +25,17 @@ make test
 make run
 ```
 
+## Kubernetes Deployment
+
+Molock can be deployed to Kubernetes using the provided Helm chart located in `deployment/molock`.
+
+```bash
+# Install the chart
+helm install my-molock ./deployment/molock
+```
+
+See the [Helm Chart README](../../../deployment/molock/README.md) for detailed configuration options.
+
 ## Immediate Usage
 
 Once the server is running, you can test it with `curl`:
