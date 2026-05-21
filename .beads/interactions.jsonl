@@ -2,3 +2,7 @@
 {"id":"int-2a623cea","kind":"field_change","created_at":"2026-05-19T22:05:56.668278Z","actor":"Fernando Ike","issue_id":"molock-f5n","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-4906a075","kind":"field_change","created_at":"2026-05-19T22:42:22.131393Z","actor":"Fernando Ike","issue_id":"molock-7ae","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-3b6fb390","kind":"field_change","created_at":"2026-05-20T15:36:30.001324Z","actor":"Fernando Ike","issue_id":"molock-o3n","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-3cba506a","kind":"field_change","created_at":"2026-05-21T13:52:07.929197Z","actor":"Fernando Ike","issue_id":"molock-7ae","extra":{"field":"priority","new_value":"1","old_value":"2"}}
+{"id":"int-57a8b558","kind":"field_change","created_at":"2026-05-21T13:57:19.003058Z","actor":"Fernando Ike","issue_id":"molock-7ae","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-f00ca4c2","kind":"field_change","created_at":"2026-05-21T14:01:29.690743Z","actor":"Fernando Ike","issue_id":"molock-f5n","extra":{"field":"status","new_value":"in_progress","old_value":"closed"}}
+{"id":"int-105037c1","kind":"field_change","created_at":"2026-05-21T14:01:34.508721Z","actor":"Fernando Ike","issue_id":"molock-f5n","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
