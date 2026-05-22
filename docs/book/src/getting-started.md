@@ -25,6 +25,15 @@ make test
 make run
 ```
 
+## Docker Deployment
+
+You can pull and run the official Molock image from the GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/fike/molock:latest
+docker run -p 8080:8080 -v $(pwd)/config:/etc/molock/config ghcr.io/fike/molock:latest
+```
+
 ## Kubernetes Deployment
 
 Molock can be deployed to Kubernetes using the provided Helm chart located in `deployment/molock`.
