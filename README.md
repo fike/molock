@@ -67,6 +67,17 @@ If you have a Kubernetes cluster, you can deploy Molock using the provided Helm 
 helm install my-molock ./deployment/molock
 ```
 
+The chart uses the official image from `ghcr.io/fike/molock` by default.
+
+### Docker Usage
+
+You can also run the official image directly:
+
+```bash
+docker pull ghcr.io/fike/molock:latest
+docker run -p 8080:8080 -v $(pwd)/config:/etc/molock/config ghcr.io/fike/molock:latest
+```
+
 ### Immediate Usage
 
 Test the default configuration with `curl`:
