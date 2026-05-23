@@ -39,6 +39,7 @@ graph TD
 - **Resilience Testing**: Native support for simulating flaky services and retry patterns using stateful rules.
 - **Stateful Logic**: Per-client state counters for simulating retry patterns.
 - **Hot Reload**: Automatic configuration reloading without server restart.
+- **Multi-architecture Support**: Native Docker images for both `amd64` (Intel/AMD) and `arm64` (Apple Silicon/Graviton).
 - **Docker & Helm Ready**: Optimized container images and Helm Charts for Kubernetes deployment.
 
 ## 🚀 Quick Start
@@ -71,7 +72,7 @@ The chart uses the official image from `ghcr.io/fike/molock` by default.
 
 ### Docker Usage
 
-You can also run the official image directly:
+You can run the official image directly. Molock provides multi-architecture images for both **x86_64** (AMD64) and **arm64** (Apple Silicon/Graviton):
 
 ```bash
 docker pull ghcr.io/fike/molock:latest
