@@ -1,6 +1,6 @@
 [package]
 name = "molock"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "High-performance mock server for CI/CD pipelines and testing"
 authors = ["Molock Team"]
