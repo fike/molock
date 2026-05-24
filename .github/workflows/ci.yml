@@ -185,7 +185,7 @@ jobs:
       - name: Download release artifacts
         if: steps.latest_release.outputs.has_release == 'true'
         run: |
-          gh release download ${{ steps.latest_release.outputs.tag }} --repo ${{ github.repository }} --pattern "*.tar.gz" --dir ./artifacts
+          gh release download ${{ steps.latest_release.outputs.tag }} --repo ${{ github.repository }} --pattern "*.tar.gz" --dir ./artifacts || echo "No release artifacts found."
           gh release download ${{ steps.latest_release.outputs.tag }} --repo ${{ github.repository }} --pattern "*.intoto.jsonl" --dir ./artifacts || echo "No provenance file found."
 
       - name: Install SLSA verifier

@@ -1980,7 +1980,7 @@ dependencies = [
 
 [[package]]
 name = "molock"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "actix-rt",
  "actix-service",
@@ -3754,6 +3754,7 @@ dependencies = [
  "base64 0.22.1",
  "mime_guess",
  "regex",
+ "reqwest",
  "rust-embed",
  "serde",
  "serde_json",
