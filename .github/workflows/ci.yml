@@ -200,7 +200,7 @@ jobs:
             slsa-verifier verify-artifact "$FILENAME" \
               --provenance-path "$PROVENANCE" \
               --source-uri github.com/${{ github.repository }} \
-              --tag-name ${{ steps.latest_release.outputs.tag }}
+              --source-tag ${{ steps.latest_release.outputs.tag }}
           else
             echo "Skipping SLSA verification: No provenance file found."
           fi
